@@ -1,0 +1,22 @@
+Package: rgllvm
+Type: Package
+Title: Robust generalized linear latent variable model
+Version: 0.1.0
+Authors@R
+  person(given = "Tanya",
+           family = "Garcia",
+           role = c("aut", "cre"),
+           email = "tpgarcia16@gmail.com")
+  person(given = "Yizheng",
+           family = "Wei",
+           role = c("aut", "cre"),
+           email = "yizheng@gmail.com")
+Maintainer: Tanya P. Garcia <tpgarcia16@gmail.com>
+Description: Semiparametric estimator for generalized linear
+latent variable model where the distribution of the latent variable 
+is left unknown. 
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Depends: R (>= 3.0.1), stats
+
