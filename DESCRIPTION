@@ -13,7 +13,8 @@ Authors@R
            email = "yizheng@gmail.com")
 Maintainer: Tanya P. Garcia <tpgarcia16@gmail.com>
 Description: Semiparametric estimator for generalized linear
-latent variable model where the distribution of the latent variable 
+latent variable model where the latent variable is a random intercept
+or randome slope, and the distribution of the latent variable 
 is left unknown. 
 License: MIT + file LICENSE
 Encoding: UTF-8
