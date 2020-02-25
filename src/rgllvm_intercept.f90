@@ -20,7 +20,6 @@ module commondata
   integer,dimension(:,:,:),allocatable :: index
   double precision,dimension(:,:,:),allocatable :: vv_combinations
 
-double precision,parameter :: tol=1e-6
   !--------------------------
   ! set after organizing data
   !--------------------------

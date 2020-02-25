@@ -2,7 +2,7 @@ Package: rgllvm
 Type: Package
 Title: Robust generalized linear latent variable model
 Version: 0.1.0
-Authors@R
+Authors@R:
   person(given = "Tanya",
            family = "Garcia",
            role = c("aut", "cre"),
@@ -13,11 +13,11 @@ Authors@R
            email = "yizheng@gmail.com")
 Maintainer: Tanya P. Garcia <tpgarcia16@gmail.com>
 Description: Semiparametric estimator for generalized linear
-latent variable model where the latent variable is a random intercept
-or randome slope, and the distribution of the latent variable 
-is left unknown. 
+  latent variable model where the latent variable is a random intercept
+  or randome slope, and the distribution of the latent variable 
+  is left unknown. 
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Depends: R (>= 3.0.1), stats
-
+RoxygenNote: 7.0.2
