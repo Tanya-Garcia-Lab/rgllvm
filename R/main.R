@@ -1,4 +1,179 @@
 
+#################################
+## Main function to run method ##
+#################################
+
+rgllvm <- function(y,x,z,
+                   n,m,p,
+                   beta0=rep(0,p)){
+
+  ###############################################
+  ## Set parameters for where to store results ##
+  ###############################################
+  p1 <- p
+  maxm <- max(m)
+  lb <- p1
+  nsimu <- 1
+
+
+  beta.est <- array(0,dim=c(nsimu,p1),
+                    dimnames=list(1:nsimu,paste("p",1:p1,sep="")))
+
+  beta.var <- array(0,dim=c(nsimu,p1,p1),
+                    dimnames=list(1:nsimu,paste("p",1:p1,sep=""),
+                                  paste("p",1:p1,sep="")))
+  beta.mle <- beta.est
+  beta.mle.var <- beta.var
+  beta.pql <- beta.est
+  beta.pql.var <- beta.var
+  sigma2.mle <- array(0,dim=c(nsimu,1))
+  sigma2.mle.sd <- array(0,dim=c(nsimu,1))
+
+  ##############
+  ## Set tolerance for
+  eps=0.001
+  tol=1e-6
+
+
+
+
+  ################################
+  ## set terms in common module ##
+  ################################
+  set_dim <- TRUE
+  do.allocations(set_dim,n,maxm,lb)
+
+  ####################################
+  ## set n1 and m1 in common module ##
+  ####################################
+  store.n1m1(n,m)
+
+  #####################################
+  ## get vv_combinations and indices ##
+  #####################################
+  getvv.terms(n,m,maxm)
+
+  s <-1
+
+  while(s <= nsimu){
+    ##print(s)
+    ## Generate data
+    data.gen <- gendata(beta0,n,m,p,fr,fzr,fzr.form,center.z=center.z,ma.orig=ma.orig,
+                        ytmp=ytmp,ztmp=ztmp,real.data=real.data)
+    y <- data.gen$yout
+    z <- data.gen$zout
+
+    ## for testing
+    print(apply(y,2,sum,na.rm=TRUE)/n)
+
+    if(fzr.form=="depcor0"){
+      ## for testing of random effects
+      r <- data.gen$r
+      print(c("mean(r)","mean(r*z)"))
+      print(c(mean(r),mean(r*z)))
+
+      print(c("minr","maxr","minz","maxz"))
+      print(c(min(r),max(r),min(z),max(z)))
+    }
+
+    ## Put data in format so that glmer can work
+    data.set <- make.data.set(n,m,p,y,z)$data.set.out
+
+    ## Solve the semipar estimator
+    if(ma.orig==TRUE){
+      beta.new <- get.beta(beta0)
+    } else {
+      beta.new <- beta0
+    }
+    beta.init <- beta.new
+
+    ## Solve semipar estimator in f90
+    data.f90 <- make.data.f90(y,z)
+
+    if(find.time==TRUE){
+      ## start the clock
+      cat("\n\n## Your method ##\n\n")
+      ptm <- proc.time()
+    }
+
+    est.f90 <- estimation.logistic(p1,beta.init,data.f90$ynew,
+                                   data.f90$znew)
+
+    if(find.time==TRUE){
+      ## stop the clock
+      print(proc.time() - ptm)
+    }
+
+    ## Solve semipar estimator in R
+    #seff <- make.seff(y=y,z=z,m=m,n=n,p=p1,ma.orig=ma.orig)
+    #solve.seff <- multiroot(seff,start=beta.init,maxiter=10000,verbose=FALSE)
+
+    #if( (abs(solve.seff$estim.precis) < tol) & !is.na(solve.seff$estim.precis)){
+
+    # beta.est[s,] <- solve.seff$root
+    # beta.var[s,,] <- get.var(beta.est[s,],y,z,m,n,p1,ma.orig)
+
+
+    if(est.f90$eflag==1){
+      beta.est[s,] <- est.f90$betaest
+      beta.var[s,,] <- est.f90$var
+
+      if(find.time==TRUE){
+        cat("\n\n## MLE Method ##\n\n")
+        ## start the clock
+        ptm <- proc.time()
+      }
+
+      ## get mle estimate
+      mle.out <- get.mle(data.set,nAGQ=20,ma.orig=ma.orig)
+
+      if(find.time==TRUE){
+        ## stop the clock
+        print(proc.time() - ptm)
+      }
+
+      beta.mle[s,] <- mle.out$betas
+      beta.mle.var[s,,] <- as.matrix(mle.out$betas.var)
+      sigma2.mle[s,] <- mle.out$sigma2
+      sigma2.mle.sd[s,] <- mle.out$sigma2.sd
+
+
+      if(find.time==TRUE){
+        cat("\n\n## PQL Method ##\n\n")
+        ## start the clock
+        ptm <- proc.time()
+      }
+
+      ## get glmmPQL estimate
+      pql.out <- get.pql(data.set,ma.orig=ma.orig)
+
+      if(find.time==TRUE){
+        ## stop the clock
+        print(proc.time() - ptm)
+      }
+
+      beta.pql[s,] <- pql.out$betas
+      beta.pql.var[s,,] <- as.matrix(pql.out$betas.var)
+
+      ## Update iteration
+      s <- s+1
+    }
+  }
+
+  ################################
+  ## set terms in common module ##
+  ################################
+  set_dim <- FALSE
+  do.allocations(set_dim,n,maxm,lb)
+
+
+
+  list(beta.est=beta.est,beta.var=beta.var,
+       beta.mle=beta.mle,beta.mle.var=beta.mle.var,
+       beta.pql=beta.pql,beta.pql.var=beta.pql.var,
+       sigma2.mle=sigma2.mle,sigma2.mle.sd=sigma2.mle.sd)
+}
+
 ###############
 ## Libraries ##
 ###############
@@ -18,7 +193,8 @@ do.allocations <- function(set_dim,nset,maxm0,lb0){
   storage.mode(maxm0) <- "integer"
   storage.mode(lb0) <- "integer"
 
-  out <- .Fortran("do_allocations",set_dim,nset,maxm0,lb0)
+  out <- .Fortran("do_allocations",set_dim,nset,maxm0,lb0,
+                  PACKAGE="rgllvm")
 }
 
 
@@ -28,7 +204,8 @@ store.n1m1 <- function(n10,m10){
   storage.mode(n10) <- "integer"
   storage.mode(m10) <- "integer"
 
-  out <- .Fortran("store_n1m1",n10,m10)
+  out <- .Fortran("store_n1m1",n10,m10,
+                  PACKAGE="rgllvm")
 }
 
 
@@ -42,7 +219,8 @@ getvv.terms <- function(n,m,maxm){
   storage.mode(m) <- "integer"
   storage.mode(maxm) <- "integer"
 
-  out <- .Fortran("getvv_terms",n,m,maxm)
+  out <- .Fortran("getvv_terms",n,m,maxm,
+                  PACKAGE="rgllvm")
 }
 
 
@@ -68,7 +246,8 @@ estimation.logistic <- function(lb,betat,ynew,z){
   storage.mode(var_beta) <- "double"
 
   out <- .Fortran("estimation_logistic",betat,ynew,z,eflag=eflag,
-      betaest=betaest,var=var,var_beta=var_beta)
+      betaest=betaest,var=var,var_beta=var_beta,
+      PACKAGE="rgllvm")
   eflag <- out$eflag
   betaest <- out$betaest
   var <- out$var
@@ -397,211 +576,11 @@ myfunc2 <- function(theta){
   return(num/den)
 }
 
-#################################
-## Function to run simulations ##
-#################################
-
-simulations <- function(nsimu,n,m,p,beta0=rep(0,p),eps=0.001,tol=1e-6,
-			seed =1,
-			fr.form = c("normal","gamma","uniform","t",
-                          "mixture.normal","mixture.norm.gamma")[1],
-			fzr.form = c("normal","normalR","uniform")[3],
-			fzr,fr,
-			center.z,
-			real.data=FALSE,
-			ytmp=NULL,
-			ztmp=NULL,
-			ma.orig=FALSE,
-			find.time=FALSE){
 
 
-###############################
-  ## Store parameter estimates ##
-###############################
-  if(ma.orig==TRUE){
-    p1=p-1
-  } else {
-    p1=p
-  }
-
-  beta.est <- array(0,dim=c(nsimu,p1),
-                    dimnames=list(1:nsimu,paste("p",1:p1,sep="")))
-
-  beta.var <- array(0,dim=c(nsimu,p1,p1),
-                    dimnames=list(1:nsimu,paste("p",1:p1,sep=""),
-		    paste("p",1:p1,sep="")))
-
-
-  beta.mle <- beta.est
-  beta.mle.var <- beta.var
-
-  beta.pql <- beta.est
-  beta.pql.var <- beta.var
-
-  sigma2.mle <- array(0,dim=c(nsimu,1))
-  sigma2.mle.sd <- array(0,dim=c(nsimu,1))
-
-
-###################
-  ## Do simulation ##
-###################
-
-  ###############
-  ## set terms ##
-  ###############
-  maxm <- max(m)
-  lb <- p1
-
-  ################################
-  ## set terms in common module ##
-  ################################
-  set_dim <- TRUE
-  do.allocations(set_dim,n,maxm,lb)
-
-  ####################################
-  ## set n1 and m1 in common module ##
-  ####################################
-  store.n1m1(n,m)
-
-  #####################################
-  ## get vv_combinations and indices ##
-  #####################################
-  if(find.time==TRUE){
-    ## start the clock
-    cat("\n\n## Your method: vv.combinations ##\n\n")
-    ptm <- proc.time()
-  }
-
-  getvv.terms(n,m,maxm)
-
-  if(find.time==TRUE){
-    ## stop the clock
-    print(proc.time() - ptm)
-  }
-
-  ## set the seed
-  set.seed(seed)
-
-  s <-1
-
-  while(s <= nsimu){
-    ##print(s)
-    ## Generate data
-    data.gen <- gendata(beta0,n,m,p,fr,fzr,fzr.form,center.z=center.z,ma.orig=ma.orig,
-		ytmp=ytmp,ztmp=ztmp,real.data=real.data)
-    y <- data.gen$yout
-    z <- data.gen$zout
-
-    ## for testing
-    print(apply(y,2,sum,na.rm=TRUE)/n)
-
-    if(fzr.form=="depcor0"){
-      ## for testing of random effects
-      r <- data.gen$r
-      print(c("mean(r)","mean(r*z)"))
-      print(c(mean(r),mean(r*z)))
-
-      print(c("minr","maxr","minz","maxz"))
-      print(c(min(r),max(r),min(z),max(z)))
-    }
-
-    ## Put data in format so that glmer can work
-    data.set <- make.data.set(n,m,p,y,z)$data.set.out
-
-    ## Solve the semipar estimator
-    if(ma.orig==TRUE){
-      beta.new <- get.beta(beta0)
-    } else {
-      beta.new <- beta0
-    }
-    beta.init <- beta.new
-
-    ## Solve semipar estimator in f90
-    data.f90 <- make.data.f90(y,z)
-
-    if(find.time==TRUE){
-      ## start the clock
-      cat("\n\n## Your method ##\n\n")
-      ptm <- proc.time()
-    }
-
-    est.f90 <- estimation.logistic(p1,beta.init,data.f90$ynew,
-    	    data.f90$znew)
-
-    if(find.time==TRUE){
-      ## stop the clock
-      print(proc.time() - ptm)
-    }
-
-    ## Solve semipar estimator in R
-    #seff <- make.seff(y=y,z=z,m=m,n=n,p=p1,ma.orig=ma.orig)
-    #solve.seff <- multiroot(seff,start=beta.init,maxiter=10000,verbose=FALSE)
-
-    #if( (abs(solve.seff$estim.precis) < tol) & !is.na(solve.seff$estim.precis)){
-
-     # beta.est[s,] <- solve.seff$root
-     # beta.var[s,,] <- get.var(beta.est[s,],y,z,m,n,p1,ma.orig)
-
-
-    if(est.f90$eflag==1){
-      beta.est[s,] <- est.f90$betaest
-      beta.var[s,,] <- est.f90$var
-
-      if(find.time==TRUE){
-        cat("\n\n## MLE Method ##\n\n")
-        ## start the clock
-	ptm <- proc.time()
-      }
-
-      ## get mle estimate
-      mle.out <- get.mle(data.set,nAGQ=20,ma.orig=ma.orig)
-
-      if(find.time==TRUE){
-        ## stop the clock
-	print(proc.time() - ptm)
-      }
-
-      beta.mle[s,] <- mle.out$betas
-      beta.mle.var[s,,] <- as.matrix(mle.out$betas.var)
-      sigma2.mle[s,] <- mle.out$sigma2
-      sigma2.mle.sd[s,] <- mle.out$sigma2.sd
-
-
-      if(find.time==TRUE){
-        cat("\n\n## PQL Method ##\n\n")
-        ## start the clock
-	ptm <- proc.time()
-      }
-
-      ## get glmmPQL estimate
-      pql.out <- get.pql(data.set,ma.orig=ma.orig)
-
-      if(find.time==TRUE){
-        ## stop the clock
-	print(proc.time() - ptm)
-      }
-
-      beta.pql[s,] <- pql.out$betas
-      beta.pql.var[s,,] <- as.matrix(pql.out$betas.var)
-
-      ## Update iteration
-      s <- s+1
-    }
-  }
-
-  ################################
-  ## set terms in common module ##
-  ################################
-  set_dim <- FALSE
-  do.allocations(set_dim,n,maxm,lb)
-
-
-
-  list(beta.est=beta.est,beta.var=beta.var,
-       beta.mle=beta.mle,beta.mle.var=beta.mle.var,
-       beta.pql=beta.pql,beta.pql.var=beta.pql.var,
-       sigma2.mle=sigma2.mle,sigma2.mle.sd=sigma2.mle.sd)
-}
+#####################
+## ANALZZE RESTULS ##
+#####################
 
 ## out : results from simulations()
 ana.results <- function(nsimu,p,beta.est, beta.var,

@@ -10,7 +10,12 @@
 ## fzr : density f_{Z|R}(Z|r)
 
 
-gendata <- function(beta,n,m=rep(2,n),p,fr,fzr,fzr.form,center.z=FALSE,ma.orig=FALSE,
+gendata <- function(beta,n,m=rep(2,n),p,
+                    fr,fzr,
+                    fr.form = c("normal","gamma","uniform","t",
+                                "mixture.normal","mixture.norm.gamma")[1],
+                    fzr.form = c("normal","normalR","uniform")[3],
+                    center.z=FALSE,ma.orig=FALSE,
                     ytmp=NULL,ztmp=NULL,real.data=FALSE){
   r <- rep(0,n)
   z <- array(NA,dim=c(n,max(m),p),
