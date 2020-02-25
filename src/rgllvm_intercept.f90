@@ -1,13 +1,85 @@
 ! 5-12-2014: Main functions used in COHORT ext code
 
+!-------------------------------------------------------
+! Functions used in the beginning
+!-------------------------------------------------------
+
+
+module commondata
+  implicit none
+  save
+  double precision,parameter :: tol=1e-6
+  !----------------------------------
+  ! allocatable items
+  !----------------------------------
+  !------------------------
+  ! set at beginning
+  !-----------------------
+  integer :: n,maxm,lb,nw
+  integer,dimension(:,:),allocatable :: index_count
+  integer,dimension(:,:,:),allocatable :: index
+  double precision,dimension(:,:,:),allocatable :: vv_combinations
+
+double precision,parameter :: tol=1e-6
+  !--------------------------
+  ! set after organizing data
+  !--------------------------
+  integer :: n1
+  integer,dimension(:),allocatable :: m1
+
+  !----------------------
+  ! set in new method
+  !---------------------
+  double precision,dimension(:),allocatable :: wv
+  double precision,dimension(:,:),allocatable :: ynew_use_logistic
+  double precision,dimension(:,:,:),allocatable :: z_use
+end module commondata
+
+
+
+! subroutine do allocations
+subroutine do_allocations(set_dim,nset,maxm0,lb0)
+  use commondata, only : maxm,lb,m1,wv,index_count,z_use,index,vv_combinations,&
+       n,nw,ynew_use_logistic,m1
+  implicit none
+  integer,intent(in) :: nset,maxm0,lb0
+  logical,intent(in) :: set_dim
+
+  !-----------------
+  ! set parameters
+  !-----------------
+  n=nset
+  maxm=maxm0
+  lb=lb0
+  nw=((lb)*((lb)*3+13))/2
+
+  if(set_dim) then
+     allocate(m1(n))
+     allocate(wv(nw))
+     allocate(ynew_use_logistic(n,maxm))
+     allocate(z_use(n,maxm,lb))
+     allocate(index(maxm,maxm,int(2.**maxm)))
+     allocate(index_count(maxm,maxm))
+     allocate(vv_combinations(maxm,int(2.**maxm),maxm))
+ else
+     deallocate(m1)
+     deallocate(wv)
+     deallocate(ynew_use_logistic)
+     deallocate(z_use)
+     deallocate(index)
+     deallocate(index_count)
+     deallocate(vv_combinations)
+  end if
+  return
+end subroutine do_allocations
+
+
+
 subroutine getvv_terms(n,m,maxm)
+  use commondata, only : vv_combinations,index,index_count
   implicit none
   integer, intent(in) :: n,maxm
   integer,dimension(n),intent(in) :: m
-  integer, dimension(maxm,maxm,int(2.**maxm)) :: index
-  integer, dimension(maxm,maxm) :: index_count
-  double precision, dimension(maxm,int(2.**maxm),maxm) :: vv_combinations
-
   call getvv(n,m,maxm,vv_combinations)
   call getindex(maxm,vv_combinations,index,index_count)
   !  do mm=1,maxm
@@ -88,17 +160,27 @@ subroutine getindex(maxm,vv_combinations,index,index_count)
 end subroutine getindex
 
 
+! subroutine to store n1 and m1 to common module
+subroutine store_n1m1(n10,m10)
+  use commondata, only : n,n1,m1
+  implicit none
+  integer,intent(in) :: n10
+  integer,dimension(n),intent(in) ::  m10
+  n1=n10
+  m1=m10
+  return
+end subroutine store_n1m1
+
 !-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ! Functions used to compute expectation
 !-------------------------------------------------
 
 ! subroutine to compute E(V_i|W_i,Z_i;beta)
-subroutine expect_v_logistic(lb,n,m,beta,ynew,z,ev)
-  use commondata, only :
-       vv_combinations,index,index_count
+subroutine expect_v_logistic(beta,ynew,z,ev)
+  use commondata, only : tol,lb,n,maxm,&
+       vv_combinations,index,index_count,&
+       n1,m1
   implicit none
-  integer, intent(in) :: lb, n, maxm
-  integer, dimension(n), intent(in) :: m
   double precision,dimension(lb),intent(in) :: beta
   double precision,dimension(n,maxm),intent(in) :: ynew
   double precision,dimension(n,maxm,lb),intent(in) :: z
@@ -110,14 +192,14 @@ subroutine expect_v_logistic(lb,n,m,beta,ynew,z,ev)
   integer,dimension(n) :: m
   integer,allocatable,dimension(:) :: other_index
   integer :: i,j,kk,uu,ii,mi,jj
-  tol=1e-6
   ev=0.
-  do i=1,n
+  m=m1
+  do i=1,n1
      !print*,'i=1',i
 
      mi=m(i)
 
-     if(m(i).gt.1.) then
+     if(m1(i).gt.1.) then
         ! allocate dimensions
         allocate(Ainv(m(i),m(i)))
         allocate(theta(m(i)))
@@ -227,23 +309,23 @@ subroutine seff_beta_terms_logistic(beta,ynew,z,sbeta_terms)
   !print*,'ev=',ev
 
   ! form terms
-  do i=1,n
-     if(m(i).gt.1.) then
+  do i=1,n1
+     if(m1(i).gt.1.) then
         ! allocate dimensions
-        allocate(Ainv(m(i),m(i)))
-        allocate(Vi(m(i)))
-        allocate(tmp1(m(i)))
+        allocate(Ainv(m1(i),m1(i)))
+        allocate(Vi(m1(i)))
+        allocate(tmp1(m1(i)))
 
         ! get Ainv
-        call get_Ainv(m(i),Ainv)
+        call get_Ainv(m1(i),Ainv)
 
         ! set Vi
-        Vi = ynew(i,1:m(i))
+        Vi = ynew(i,1:m1(i))
         Vi(1)=0.
         !print*,'Vi=',Vi
-        !print*,'ev=',ev(i,1:m(i))
-        tmp1=matmul(Ainv,(Vi(1:m(i))-ev(i,1:m(i))))
-        tmp2=matmul(transpose(z(i,1:m(i),:)),tmp1)
+        !print*,'ev=',ev(i,1:m1(i))
+        tmp1=matmul(Ainv,(Vi(1:m1(i))-ev(i,1:m1(i))))
+        tmp2=matmul(transpose(z(i,1:m1(i),:)),tmp1)
         !print*,'tmp1=',tmp1
         !print*,'i=',i,'tmp2=',tmp2
         sbeta_terms(:,i)=tmp2
@@ -395,7 +477,7 @@ subroutine getvar(lb,betaest,var,var_beta)
   ! get variance matrix
   !---------------------
   var_tmp=0.
-  do i=1,n
+  do i=1,n1
      call muly(lb,sbeta_terms(:,i),tmp)
      var_tmp=var_tmp+tmp
   end do
