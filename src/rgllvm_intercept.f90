@@ -93,12 +93,12 @@ end subroutine getindex
 !-------------------------------------------------
 
 ! subroutine to compute E(V_i|W_i,Z_i;beta)
-subroutine expect_v_logistic(lb,n,beta,ynew,z,ev)
+subroutine expect_v_logistic(lb,n,m,beta,ynew,z,ev)
   use commondata, only :
-       vv_combinations,index,index_count,&
-       n1,m1
+       vv_combinations,index,index_count
   implicit none
   integer, intent(in) :: lb, n, maxm
+  integer, dimension(n), intent(in) :: m
   double precision,dimension(lb),intent(in) :: beta
   double precision,dimension(n,maxm),intent(in) :: ynew
   double precision,dimension(n,maxm,lb),intent(in) :: z
@@ -112,13 +112,12 @@ subroutine expect_v_logistic(lb,n,beta,ynew,z,ev)
   integer :: i,j,kk,uu,ii,mi,jj
   tol=1e-6
   ev=0.
-  m=m1
-  do i=1,n1
+  do i=1,n
      !print*,'i=1',i
 
      mi=m(i)
 
-     if(m1(i).gt.1.) then
+     if(m(i).gt.1.) then
         ! allocate dimensions
         allocate(Ainv(m(i),m(i)))
         allocate(theta(m(i)))
@@ -228,23 +227,23 @@ subroutine seff_beta_terms_logistic(beta,ynew,z,sbeta_terms)
   !print*,'ev=',ev
 
   ! form terms
-  do i=1,n1
-     if(m1(i).gt.1.) then
+  do i=1,n
+     if(m(i).gt.1.) then
         ! allocate dimensions
-        allocate(Ainv(m1(i),m1(i)))
-        allocate(Vi(m1(i)))
-        allocate(tmp1(m1(i)))
+        allocate(Ainv(m(i),m(i)))
+        allocate(Vi(m(i)))
+        allocate(tmp1(m(i)))
 
         ! get Ainv
-        call get_Ainv(m1(i),Ainv)
+        call get_Ainv(m(i),Ainv)
 
         ! set Vi
-        Vi = ynew(i,1:m1(i))
+        Vi = ynew(i,1:m(i))
         Vi(1)=0.
         !print*,'Vi=',Vi
-        !print*,'ev=',ev(i,1:m1(i))
-        tmp1=matmul(Ainv,(Vi(1:m1(i))-ev(i,1:m1(i))))
-        tmp2=matmul(transpose(z(i,1:m1(i),:)),tmp1)
+        !print*,'ev=',ev(i,1:m(i))
+        tmp1=matmul(Ainv,(Vi(1:m(i))-ev(i,1:m(i))))
+        tmp2=matmul(transpose(z(i,1:m(i),:)),tmp1)
         !print*,'tmp1=',tmp1
         !print*,'i=',i,'tmp2=',tmp2
         sbeta_terms(:,i)=tmp2
@@ -396,7 +395,7 @@ subroutine getvar(lb,betaest,var,var_beta)
   ! get variance matrix
   !---------------------
   var_tmp=0.
-  do i=1,n1
+  do i=1,n
      call muly(lb,sbeta_terms(:,i),tmp)
      var_tmp=var_tmp+tmp
   end do

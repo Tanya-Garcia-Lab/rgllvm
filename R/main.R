@@ -13,29 +13,11 @@ rgllvm <- function(y,x,z,
   p1 <- p
   maxm <- max(m)
   lb <- p1
-  nsimu <- 1
-
-
-  beta.est <- array(0,dim=c(nsimu,p1),
-                    dimnames=list(1:nsimu,paste("p",1:p1,sep="")))
-
-  beta.var <- array(0,dim=c(nsimu,p1,p1),
-                    dimnames=list(1:nsimu,paste("p",1:p1,sep=""),
-                                  paste("p",1:p1,sep="")))
-  beta.mle <- beta.est
-  beta.mle.var <- beta.var
-  beta.pql <- beta.est
-  beta.pql.var <- beta.var
-  sigma2.mle <- array(0,dim=c(nsimu,1))
-  sigma2.mle.sd <- array(0,dim=c(nsimu,1))
 
   ##############
   ## Set tolerance for
   eps=0.001
   tol=1e-6
-
-
-
 
   ################################
   ## set terms in common module ##
@@ -53,112 +35,39 @@ rgllvm <- function(y,x,z,
   #####################################
   getvv.terms(n,m,maxm)
 
-  s <-1
+  ## Put data in format so that glmer can work
+  data.set <- make.data.set(n,m,p,y,x)$data.set.out
 
-  while(s <= nsimu){
-    ##print(s)
-    ## Generate data
-    data.gen <- gendata(beta0,n,m,p,fr,fzr,fzr.form,center.z=center.z,ma.orig=ma.orig,
-                        ytmp=ytmp,ztmp=ztmp,real.data=real.data)
-    y <- data.gen$yout
-    z <- data.gen$zout
+  ## Set beta parameter
+  beta.new <- beta0
+  beta.init <- beta.new
 
-    ## for testing
-    print(apply(y,2,sum,na.rm=TRUE)/n)
+  ## Solve semipar estimator in f90
+  data.f90 <- make.data.f90(y,x)
 
-    if(fzr.form=="depcor0"){
-      ## for testing of random effects
-      r <- data.gen$r
-      print(c("mean(r)","mean(r*z)"))
-      print(c(mean(r),mean(r*z)))
-
-      print(c("minr","maxr","minz","maxz"))
-      print(c(min(r),max(r),min(z),max(z)))
-    }
-
-    ## Put data in format so that glmer can work
-    data.set <- make.data.set(n,m,p,y,z)$data.set.out
-
-    ## Solve the semipar estimator
-    if(ma.orig==TRUE){
-      beta.new <- get.beta(beta0)
-    } else {
-      beta.new <- beta0
-    }
-    beta.init <- beta.new
-
-    ## Solve semipar estimator in f90
-    data.f90 <- make.data.f90(y,z)
-
-    if(find.time==TRUE){
-      ## start the clock
-      cat("\n\n## Your method ##\n\n")
-      ptm <- proc.time()
-    }
-
-    est.f90 <- estimation.logistic(p1,beta.init,data.f90$ynew,
+  est.f90 <- estimation.logistic(p1,beta.init,data.f90$ynew,
                                    data.f90$znew)
 
-    if(find.time==TRUE){
-      ## stop the clock
-      print(proc.time() - ptm)
-    }
-
-    ## Solve semipar estimator in R
-    #seff <- make.seff(y=y,z=z,m=m,n=n,p=p1,ma.orig=ma.orig)
-    #solve.seff <- multiroot(seff,start=beta.init,maxiter=10000,verbose=FALSE)
-
-    #if( (abs(solve.seff$estim.precis) < tol) & !is.na(solve.seff$estim.precis)){
-
-    # beta.est[s,] <- solve.seff$root
-    # beta.var[s,,] <- get.var(beta.est[s,],y,z,m,n,p1,ma.orig)
-
-
-    if(est.f90$eflag==1){
-      beta.est[s,] <- est.f90$betaest
-      beta.var[s,,] <- est.f90$var
-
-      if(find.time==TRUE){
-        cat("\n\n## MLE Method ##\n\n")
-        ## start the clock
-        ptm <- proc.time()
-      }
-
-      ## get mle estimate
-      mle.out <- get.mle(data.set,nAGQ=20,ma.orig=ma.orig)
-
-      if(find.time==TRUE){
-        ## stop the clock
-        print(proc.time() - ptm)
-      }
-
-      beta.mle[s,] <- mle.out$betas
-      beta.mle.var[s,,] <- as.matrix(mle.out$betas.var)
-      sigma2.mle[s,] <- mle.out$sigma2
-      sigma2.mle.sd[s,] <- mle.out$sigma2.sd
-
-
-      if(find.time==TRUE){
-        cat("\n\n## PQL Method ##\n\n")
-        ## start the clock
-        ptm <- proc.time()
-      }
-
-      ## get glmmPQL estimate
-      pql.out <- get.pql(data.set,ma.orig=ma.orig)
-
-      if(find.time==TRUE){
-        ## stop the clock
-        print(proc.time() - ptm)
-      }
-
-      beta.pql[s,] <- pql.out$betas
-      beta.pql.var[s,,] <- as.matrix(pql.out$betas.var)
-
-      ## Update iteration
-      s <- s+1
-    }
+  if(est.f90$eflag==1){
+      beta.est <- est.f90$betaest
+      beta.var <- est.f90$var
+  } else {
+    beta.est <- NULL
+    beta.var <- NULL
   }
+
+  ## get mle estimate
+  mle.out <- get.mle(data.set,nAGQ=20)
+  beta.mle <- mle.out$betas
+  beta.mle.var <- as.matrix(mle.out$betas.var)
+  sigma2.mle <- mle.out$sigma2
+  sigma2.mle.sd <- mle.out$sigma2.sd
+
+  ## get glmmPQL estimate
+  pql.out <- get.pql(data.set)
+  beta.pql <- pql.out$betas
+  beta.pql.var <- as.matrix(pql.out$betas.var)
+
 
   ################################
   ## set terms in common module ##
@@ -168,10 +77,10 @@ rgllvm <- function(y,x,z,
 
 
 
-  list(beta.est=beta.est,beta.var=beta.var,
+  return(list(beta.est=beta.est,beta.var=beta.var,
        beta.mle=beta.mle,beta.mle.var=beta.mle.var,
        beta.pql=beta.pql,beta.pql.var=beta.pql.var,
-       sigma2.mle=sigma2.mle,sigma2.mle.sd=sigma2.mle.sd)
+       sigma2.mle=sigma2.mle,sigma2.mle.sd=sigma2.mle.sd))
 }
 
 ###############
@@ -303,7 +212,7 @@ make.data.set <- function(n,m,p,y,z){
 ## Function to get normal-based MLE ##
 ######################################
 
-get.mle <- function(data.set,nAGQ=20,ma.orig=FALSE){
+get.mle <- function(data.set,nAGQ=20){
 
   ##Y <- data.set$Y
   ##family <- data.set$family
@@ -332,15 +241,6 @@ get.mle <- function(data.set,nAGQ=20,ma.orig=FALSE){
   betas <- fixef(fm)
   se <- sqrt(diag(Vcov))
 
-  if(ma.orig==TRUE){
-    betas <- get.beta(fixef(fm))
-    m <- length(fixef(fm))
-    h <- diag(1,m-1)
-    h <- cbind(rep(-1,m-1),h)
-    v.delta <- h %*% Vcov %*% t(h)
-
-    se <- sqrt(diag(v.delta))
-  }
 
 ##  zval <- betas / se
 ##  pval <- 2 * pnorm(abs(zval), lower.tail = FALSE)
@@ -370,7 +270,7 @@ get.mle <- function(data.set,nAGQ=20,ma.orig=FALSE){
 ## Function for glmmPQL ##
 ##########################
 
-get.pql <- function(data.set,ma.orig=FALSE){
+get.pql <- function(data.set){
 
   znam <- paste("Z",1:(ncol(data.set)-2),sep="")
   fmla <- as.formula(paste("Y~-1 +",paste(znam,collapse="+")))
@@ -384,15 +284,6 @@ get.pql <- function(data.set,ma.orig=FALSE){
   betas <- fixef(fm)
   se <- sqrt(diag(Vcov))
 
-  if(ma.orig==TRUE){
-    betas <- get.beta(fixef(fm))
-    m <- length(fixef(fm))
-    h <- diag(1,m-1)
-    h <- cbind(rep(-1,m-1),h)
-    v.delta <- h %*% Vcov %*% t(h)
-
-    se <- sqrt(diag(v.delta))
-  }
 
 ##  zval <- betas / se
 ##  pval <- 2 * pnorm(abs(zval), lower.tail = FALSE)
@@ -430,7 +321,7 @@ select.vv <- function(vv.combinations,wi){
 
 ## Compute E(V_i|W_i,Z_i;beta)
 
-expect.v <- function(beta,y,z,m,n,p,tol=1e-6,ma.orig=FALSE){
+expect.v <- function(beta,y,z,m,n,p,tol=1e-6){
   ev <- array(NA,dim=c(n,max(m)),
               dimnames=list(1:n,paste("m",1:max(m),sep="")))
 
@@ -442,12 +333,8 @@ expect.v <- function(beta,y,z,m,n,p,tol=1e-6,ma.orig=FALSE){
     mat.tmp <- matrix(rep(c(0,1),each=m.tmp),ncol=m.tmp,nrow=2,byrow=TRUE)
     vv.combinations <- as.matrix(do.call(`expand.grid`,as.data.frame(mat.tmp)))
 
-    if(ma.orig==TRUE){
-      theta <- c(0,beta)
-    } else {
-      z.tmp <- t(z[i,1:m[i],])
-      theta <- t(z.tmp) %*% beta
-    }
+    z.tmp <- t(z[i,1:m[i],])
+    theta <- t(z.tmp) %*% beta
 
     if(wi==0){
       ev[i,2:m[i]] <- 0
@@ -484,9 +371,9 @@ get.Ainv <- function(mi){
 }
 
 ## Create terms in score vector
-seff.terms <- function(beta,y,z,m,n,p,ma.orig=FALSE){
+seff.terms <- function(beta,y,z,m,n,p){
   ## get E(V_i|W_i,Z_i;beta)
-  ev <- expect.v(beta,y,z,m,n,p,ma.orig=ma.orig)
+  ev <- expect.v(beta,y,z,m,n,p)
 
   ## place to store terms in the score vector
   score.out <- array(0,dim=c(p,n),
@@ -511,11 +398,7 @@ seff.terms <- function(beta,y,z,m,n,p,ma.orig=FALSE){
 
     ## Attempt 2
     Ai.inv <-	get.Ainv(m[i])
-    if(ma.orig==TRUE){
-       z.tmp <- t(z[i,1:m[i],-m[i]])
-    } else{
-      z.tmp <- t(z[i,1:m[i],])
-    }
+    z.tmp <- t(z[i,1:m[i],])
 
     Vi <- y[i,]
     Vi[1] <- 0
@@ -529,9 +412,9 @@ seff.terms <- function(beta,y,z,m,n,p,ma.orig=FALSE){
 
 
 ## Create score vector
-make.seff <- function(y,z,m,n,p,ma.orig=FALSE){
+make.seff <- function(y,z,m,n,p){
   function(beta){
-    get.terms <- seff.terms(beta,y=y,z=z,m=m,n=n,p=p,ma.orig=ma.orig)
+    get.terms <- seff.terms(beta,y=y,z=z,m=m,n=n,p=p)
     score <- get.terms$score.out
     out <- apply(score,1,sum)
     return(out)
@@ -539,8 +422,8 @@ make.seff <- function(y,z,m,n,p,ma.orig=FALSE){
 }
 
 ## Compute variance of beta using semipar approach
-get.var <- function(beta,y,z,m,n,p,ma.orig){
-  get.terms <- seff.terms(beta,y,z,m,n,p,ma.orig=ma.orig)
+get.var <- function(beta,y,z,m,n,p){
+  get.terms <- seff.terms(beta,y,z,m,n,p)
   score <- get.terms$score.out
 
   out <- 0
@@ -586,15 +469,11 @@ myfunc2 <- function(theta){
 ana.results <- function(nsimu,p,beta.est, beta.var,
                         beta.mle, beta.mle.var,
 			beta.pql, beta.pql.var,
-		        sigma2.mle,sigma2.mle.sd,beta0,ma.orig=FALSE,
+		        sigma2.mle,sigma2.mle.sd,beta0,
 			real.data=FALSE){
 
  if(real.data==FALSE){
-  if(ma.orig==TRUE){
-    betat <- get.beta(beta0)
-  } else {
-    betat <- beta0
-  }
+  betat <- beta0
 
   haus.out <- array(0,dim=c(nsimu,8),
 			dimnames=list(1:nsimu,c("MLEstatistic","k","pvalue","reject",
