@@ -3,6 +3,32 @@
 ## Main function to run method ##
 #################################
 
+#' Robust generalized linear latent variable model
+#'
+#' Function estimates parameters in a generalized linear latent variable model
+#' where the latent variable is a random intercept or slope, and the distribution
+#' of the latent variable is left unspecified.
+#'
+#'@param y xx
+#'@param x XXX
+#'@param z xxx
+#'@param n xxx
+#'@param m xxxx
+#'@param p xxx
+#'@param beta0 xxx
+#'
+#'@return \code{rgllvm} returns a list containing
+#' \itemize{
+#'   \item{beta.est:}{xx}
+#'   \item{beta.var:}{xx}
+#'   \item{beta.mle:}{xx}
+#'   \item{beta.mle.var:}{xx}
+#'   \item{beta.pql:}{xx}
+#'   \item{beta.pql.var:}{xx}
+#'   \item{sigma2.mle:}{xxx}
+#'   \item{sigma2.mle.sd:}{xxx}
+#' }
+#'@export
 rgllvm <- function(y,x,z,
                    n,m,p,
                    beta0=rep(0,p)){
