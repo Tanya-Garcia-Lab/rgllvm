@@ -11,7 +11,8 @@
 
 
 gendata <- function(beta,n,m=rep(2,n),p,
-                    fr,fzr,
+                    fr,
+                    fzr,
                     fr.form = c("normal","gamma","uniform","t",
                                 "mixture.normal","mixture.norm.gamma")[1],
                     fzr.form = c("normal","normalR","uniform")[3],
@@ -113,9 +114,10 @@ gendata <- function(beta,n,m=rep(2,n),p,
 
 
 ## Functions to generate data
+#' @import stats
 make.uniform.fzr <- function(min=-1,max=1){
   function(nr,r){
-    runif(nr,min=min,max=max)
+    stats::runif(nr,min=min,max=max)
   }
 }
 
@@ -126,78 +128,87 @@ make.uniform.fzr.R <- function(min=1,max=2){
   }
 }
 
-
+#' @import stats
 make.normal.fzr <- function(mean=0,sd=1){
   function(nr,r){
-    rnorm(nr,mean=mean,sd=sd)
+    stats::rnorm(nr,mean=mean,sd=sd)
   }
 }
 
+#' @import stats
 make.normal.fzr.R <- function(sd=1){
   function(nr,r){
-    rnorm(nr,mean=r,sd=sd)
+    stats::rnorm(nr,mean=r,sd=sd)
   }
 }
 
+#' @import stats
 make.normal.fzr.R2 <- function(mean=1){
   function(nr,r){
-    rnorm(nr,mean=mean,sd=abs(r))
+    stats::rnorm(nr,mean=mean,sd=abs(r))
   }
 }
 
+#' @import stats
 make.normal.fzr.R <- function(sd=1){
   function(nr,r){
-    rnorm(nr,mean=r,sd=sd)
+    stats::rnorm(nr,mean=r,sd=sd)
   }
 }
 
-
+#' @import stats
 make.normal <- function(mean=0,sd=1){
   function(nr){
-    rnorm(nr,mean=mean,sd=sd)
+    stats::rnorm(nr,mean=mean,sd=sd)
   }
 }
 
+#' @import stats
 make.gamma <- function(shape=1.5,scale=2){
   function(nr){
-    rgamma(nr,shape=shape,scale=scale)
+    stats::rgamma(nr,shape=shape,scale=scale)
   }
 }
 
+#' @import stats
 make.uniform <- function(min=-2,max=2){
   function(nr){
-    runif(nr,min=min,max=max)
+    stats::runif(nr,min=min,max=max)
   }
 }
 
+#' @import stats
 make.t <- function(df=3,ncp=-2){
   function(nr){
-    rt(nr,df=df,ncp=ncp)
+    stats::rt(nr,df=df,ncp=ncp)
   }
 }
 
+#' @import stats
 make.cauchy <- function(location=0,scale=1){
   function(nr){
-    rcauchy(nr,location=location,scale=scale)
+    stats::rcauchy(nr,location=location,scale=scale)
   }
 }
 
+#' @import stats
 make.mixture.normals <- function(mean1=0,sd1=1,mean2=1,sd2=2,mix=0.5){
   function(nr){
     if(runif(1) < mix){
-      rnorm(nr,mean=mean1,sd=sd1)
+      stats::rnorm(nr,mean=mean1,sd=sd1)
     } else {
-      rnorm(nr,mean=mean2,sd=sd2)
+      stats::rnorm(nr,mean=mean2,sd=sd2)
     }
   }
 }
 
+#' @import stats
 make.mixture.norm.gamma <- function(mean=0,sd=1,shape=1.5,scale=2,mix=0.5){
   function(nr){
-    if(runif(1) < mix){
-      rnorm(nr,mean=mean,sd=sd)
+    if(stats::runif(1) < mix){
+      stats::rnorm(nr,mean=mean,sd=sd)
     } else {
-      rgamma(nr,shape=shape,scale=scale)
+      stats::rgamma(nr,shape=shape,scale=scale)
     }
   }
 }
