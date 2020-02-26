@@ -5,17 +5,21 @@
 
 #' Robust generalized linear latent variable model
 #'
-#' Function estimates parameters in a generalized linear latent variable model
+#' Estimates parameters for repeated measures data using a generalized linear latent variable model
 #' where the latent variable is a random intercept or slope, and the distribution
 #' of the latent variable is left unspecified.
 #'
-#'@param y xx
-#'@param x XXX
-#'@param z xxx
-#'@param n xxx
-#'@param m xxxx
-#'@param p xxx
-#'@param beta0 xxx
+#'@param y.data (N by 2) matrix of the subject ID (first column) and repeated-measures outcome (second column).
+#'The data is in long format, where each row is one time point per subject and N is the total number of repeated measures for all subjects.
+#'@param x.data (N by (1+p)) matrix of the subject ID (first column) and p-many repeated-measure covariates that exert a fixed effect in the model.
+#'The data is in long format where each row is one time point per subject and N is the total number of repeated measures for all subjects.
+#'@param z.data (N by (1+q)) matrix of the subject ID (first column) and q-many repeated-measure covariates that have an associated random effect.
+#'The data is in long format where each row is one time point per subject and N is the total number of repeated measures for all subjects.
+#' \code{z.data} is allowed to be NULL, in which case the odel assumes the random effect is a random intercept. Default is NULL.
+#'@param n scalar denoting the number of sujects in the study.
+#'@param m n-dimensional vector containing the number of repeated measures per subject.
+#'@param p scalar denoting the number of fixed effects in the model.
+#'@param beta0 p-dimensional vector containing the initial estimate of the fixed effect parameters. Default is a p-dimensional vector of zeroes.
 #'
 #'@return \code{rgllvm} returns a list containing
 #' \itemize{
@@ -29,7 +33,7 @@
 #'   \item{sigma2.mle.sd:}{xxx}
 #' }
 #'@export
-rgllvm <- function(y,x,z,
+rgllvm <- function(y.data,x.data,z.data,
                    n,m,p,
                    beta0=rep(0,p)){
 
@@ -108,14 +112,6 @@ rgllvm <- function(y,x,z,
        beta.pql=beta.pql,beta.pql.var=beta.pql.var,
        sigma2.mle=sigma2.mle,sigma2.mle.sd=sigma2.mle.sd))
 }
-
-###############
-## Libraries ##
-###############
-#library(lme4)  ## for normal-based MLE
-#library(rootSolve)  ## for solving root of an equation
-#library(xtable) ## for LaTeX Table
-#library(MASS) ## for glmmPQL
 
 ############################
 ## functions used for F90 ##
