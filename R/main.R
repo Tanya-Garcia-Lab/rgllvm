@@ -6,8 +6,7 @@
 #' Robust generalized linear latent variable model
 #'
 #' Estimates parameters for repeated measures data using a generalized linear latent variable model
-#' where the latent variable is a random intercept or slope, and the distribution
-#' of the latent variable is left unspecified.
+#' where the latent variable is a random intercept or random slope.
 #'
 #'@param y.data (N by 2) matrix of the subject ID (first column) and repeated-measures outcome (second column).
 #'The data is in long format, where each row is one time point per subject and N is the total number of repeated measures for all subjects.
@@ -20,71 +19,133 @@
 #'@param m n-dimensional vector containing the number of repeated measures per subject.
 #'@param p scalar denoting the number of fixed effects in the model.
 #'@param beta0 p-dimensional vector containing the initial estimate of the fixed effect parameters. Default is a p-dimensional vector of zeroes.
+#'@param family character vector denoting the type of generalized linear model. Code currently only implements family="binomial"
+#'for the logistic model.
+#'
+#'@section Details:
+#'This function reports three ways to estimate parameters for repeated measures data using a generalized linear latent variable model.
+#'The first is a semiparametric approach where the distribution of the latent variable is left unspecified. The second is the maximum likelihood
+#'estimator which assumes the latent variable is normally distributed with mean zero.
+#'The third is the penalized quasi-likihood estimator which does not assume the
+#'latent variable is normally distributed, only that it has zero mean and finite variance.
+#'
+#'
+#' @references
+#' Breslow, N. E. & Clayton, D. G. (1993). Approximate inference in generalized linear mixed models.
+#' Journal of the American Statistical Association 88, 9-25.
+#'
+#' Garcia, T.P. and Ma, Y. (2015). Optimal estimator for
+#' logistic model with distribution-free random intercept.
+#' Scandinavian Journal of Statistics, 43, 156-171.
+#'
+#' Ma, Y. & Genton, M. G. (2010). Explicit estimating equations for semiparametric generalized
+#' linear latent variable models. Journal of the Royal Statistical Society, Series B 72, 475-495.
+#'
+#' Schall, R. (1991) Estimation in generalized linear models with random effects. Biometrika 78, 719-727.
+#'
+#' Wei, Y., Ma, Y., Garcia, T.P. and Sinha, S. (2019). Consistent estimator
+#' for logistic mixed effect models. The Canadian Journal of Statistics, 47, 140-156. doi:10.1002/cjs.11482.
+#'
 #'
 #'@return \code{rgllvm} returns a list containing
 #' \itemize{
-#'   \item{beta.est:}{xx}
-#'   \item{beta.var:}{xx}
-#'   \item{beta.mle:}{xx}
-#'   \item{beta.mle.var:}{xx}
-#'   \item{beta.pql:}{xx}
-#'   \item{beta.pql.var:}{xx}
-#'   \item{sigma2.mle:}{xxx}
-#'   \item{sigma2.mle.sd:}{xxx}
+#'   \item{beta.est:}{fixed effect estimates from the semiparametric estimator
+#'   that does not make any distributional assumptions on the latent variable.}
+#'   \item{beta.var:}{estimated variances of the fixed effects from the  semiparametric
+#'   estimator that does not make any distributional assumptions on the latent variable}
+#'   \item{beta.mle:}{fixed effect estimates from the maximum likelihood estimator.}
+#'   \item{beta.mle.var:}{estimated variances of the fixed effect estimates from the maximum likelihood estimator.}
+#'   \item{beta.pql:}{fixed effect estimates from the penalized quasi-likelihood estimator.}
+#'   \item{beta.pql.var:}{estimated variances of the fixed effects from the penalized quasi-likelihood estimator.}
 #' }
 #'@export
 rgllvm <- function(y.data,x.data,z.data,
                    n,m,p,
-                   beta0=rep(0,p)){
+                   beta0=rep(0,p),
+                   family="binomial"){
+
+
+  ###########################
+  ## Do checks on the data ##
+  ###########################
+  if(nrow(y.data)!= nrow(x.data)){
+    stop("The number of rows of y.data and x.data should be the same.")
+  }
+
+  if(!is.null(z.data)){
+    if(nrow(y.data)!=nrow(z.data)){
+      stop("The number of row of y.data and z.data should be the same.")
+    }
+  }
 
   ###############################################
   ## Set parameters for where to store results ##
   ###############################################
-  p1 <- p
   maxm <- max(m)
-  lb <- p1
 
-  ##############
-  ## Set tolerance for
-  eps=0.001
-  tol=1e-6
+
+  ########################################################
+  ## put data sets into the forms needed for estimation ##
+  ########################################################
+  y <- create.wide.form(y.data,n,m)
+  x <- create.wide.form(x.data,n,m)
+  if(!is.null(z.data)){
+    z <- create.wide.form(z.data,n,m)
+  }
 
   ################################
   ## set terms in common module ##
   ################################
-  set_dim <- TRUE
-  do.allocations(set_dim,n,maxm,lb)
+  if(is.null(z.data)){
+    ###########################################
+    ## latent variable is a random intercept ##
+    ###########################################
+    set_dim <- TRUE
+    do.allocations(set_dim,n,maxm,p)
 
-  ####################################
-  ## set n1 and m1 in common module ##
-  ####################################
-  store.n1m1(n,m)
+    ####################################
+    ## set n1 and m1 in common module ##
+    ####################################
+    store.n1m1(n,m)
 
-  #####################################
-  ## get vv_combinations and indices ##
-  #####################################
-  getvv.terms(n,m,maxm)
+    #####################################
+    ## get vv_combinations and indices ##
+    #####################################
+    getvv.terms(n,m,maxm)
+
+    ## Set beta parameter
+    beta.new <- beta0
+    beta.init <- beta.new
+
+    ## Solve semipar estimator in f90
+    data.f90 <- make.data.f90(y,x)
+
+    est.f90 <- estimation.logistic(p,beta.init,data.f90$ynew,
+                                   data.f90$znew)
+
+    if(est.f90$eflag==1){
+      beta.est <- est.f90$betaest
+      beta.var <- est.f90$var
+    } else {
+      beta.est <- NULL
+      beta.var <- NULL
+    }
+
+    ################################
+    ## set terms in common module ##
+    ################################
+    set_dim <- FALSE
+    do.allocations(set_dim,n,maxm,p)
+  } else {
+    #######################################
+    ## latent variable is a random slope ##
+    #######################################
+
+
+  }
 
   ## Put data in format so that glmer can work
   data.set <- make.data.set(n,m,p,y,x)$data.set.out
-
-  ## Set beta parameter
-  beta.new <- beta0
-  beta.init <- beta.new
-
-  ## Solve semipar estimator in f90
-  data.f90 <- make.data.f90(y,x)
-
-  est.f90 <- estimation.logistic(p1,beta.init,data.f90$ynew,
-                                   data.f90$znew)
-
-  if(est.f90$eflag==1){
-      beta.est <- est.f90$betaest
-      beta.var <- est.f90$var
-  } else {
-    beta.est <- NULL
-    beta.var <- NULL
-  }
 
   ## get mle estimate
   mle.out <- get.mle(data.set,nAGQ=20)
@@ -99,11 +160,6 @@ rgllvm <- function(y.data,x.data,z.data,
   beta.pql.var <- as.matrix(pql.out$betas.var)
 
 
-  ################################
-  ## set terms in common module ##
-  ################################
-  set_dim <- FALSE
-  do.allocations(set_dim,n,maxm,lb)
 
 
 
@@ -112,6 +168,40 @@ rgllvm <- function(y.data,x.data,z.data,
        beta.pql=beta.pql,beta.pql.var=beta.pql.var,
        sigma2.mle=sigma2.mle,sigma2.mle.sd=sigma2.mle.sd))
 }
+
+################################################
+## functions to transform data into wide form ##
+################################################
+create.wide.form <- function(x,n,m){
+  subjectID <- x[,1]
+  data.to.organize <- data.frame(x[,-1])
+  lb <- ncol(data.to.organize)
+  uniqueID <- unique(subjectID)
+
+  if(length(uniqueID)!=n){
+    stop("The number of unique subject ID's in the data does not match the sample size n.")
+  }
+
+  if(lb >1){
+    out <- array(NA,dim=c(n,max(m),lb),
+                     dimnames=list(1:n,paste("m",1:max(m),sep=""),1:lb))
+  } else {
+    out <- array(NA,dim=c(n,max(m)),
+                 dimnames=list(1:n,paste("m",1:max(m),sep="")))
+  }
+
+  for(ll in 1:length(uniqueID)){
+    data.tmp <- which(x[,1]==uniqueID[ll])
+    if(lb >1){
+      out[ll,1:length(data.tmp),] <- as.matrix(data.to.organize[data.tmp,])
+    } else {
+      out[ll,1:length(data.tmp)] <- data.to.organize[data.tmp,]
+    }
+  }
+
+  return(out)
+}
+
 
 ############################
 ## functions used for F90 ##
