@@ -229,7 +229,7 @@ get.mle <- function(data.set,nAGQ=20){
 
   znam <- paste("Z",1:(ncol(data.set)-2),sep="")
   znam <- c(znam,"(1|family)")
-  fmla <- stat::as.formula(paste("Y~-1 +",paste(znam,collapse="+")))
+  fmla <- stats::as.formula(paste("Y~-1 +",paste(znam,collapse="+")))
 ##  fmla <- as.formula(paste("Y~",paste(znam,collapse="+")))
 
   fm <- lme4::glmer(fmla,data=data.set,family=binomial,nAGQ=nAGQ,
@@ -467,7 +467,7 @@ myfunc2 <- function(theta){
 
 
 #####################
-## ANALZZE RESTULS ##
+## ANALZZE RESULTS ##
 #####################
 
 ## out : results from simulations()
