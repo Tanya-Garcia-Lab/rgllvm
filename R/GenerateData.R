@@ -9,7 +9,8 @@
 ## fr : density f_R(r)
 ## fzr : density f_{Z|R}(Z|r)
 
-
+#' @import stats
+#' @importFrom rootSolve multiroot
 gendata <- function(beta,n,m=rep(2,n),p,
                     fr,
                     fzr,
@@ -55,7 +56,7 @@ gendata <- function(beta,n,m=rep(2,n),p,
       }
 
       root.function <- get.root.function(r)
-      myroot <- multiroot(root.function,start=c(-1,1,2))
+      myroot <- rootSolve::multiroot(root.function,start=c(-1,1,2))
       solution <- myroot$root
       r <- (solution[1]*r+solution[2])
 
@@ -85,7 +86,7 @@ gendata <- function(beta,n,m=rep(2,n),p,
       for(j in 1:m[i]){
         w[i,j] <- z[i,j,]  %*% beta + r[i]
         prob   <- 1 / ( 1 + exp(-w[i,j]) )
-        if(runif(1) < prob){
+        if(stats::runif(1) < prob){
           y[i,j] <-1
         } else {
           y[i,j] <-0

@@ -212,6 +212,8 @@ make.data.set <- function(n,m,p,y,z){
 ## Function to get normal-based MLE ##
 ######################################
 
+#' @import lme4
+#' @import stats
 get.mle <- function(data.set,nAGQ=20){
 
   ##Y <- data.set$Y
@@ -227,18 +229,18 @@ get.mle <- function(data.set,nAGQ=20){
 
   znam <- paste("Z",1:(ncol(data.set)-2),sep="")
   znam <- c(znam,"(1|family)")
-  fmla <- as.formula(paste("Y~-1 +",paste(znam,collapse="+")))
+  fmla <- stat::as.formula(paste("Y~-1 +",paste(znam,collapse="+")))
 ##  fmla <- as.formula(paste("Y~",paste(znam,collapse="+")))
 
-  fm <- glmer(fmla,data=data.set,family=binomial,nAGQ=nAGQ,
-     	control=glmerControl(optimizer="bobyqa"))
+  fm <- lme4::glmer(fmla,data=data.set,family=binomial,nAGQ=nAGQ,
+     	control=lme4::glmerControl(optimizer="bobyqa"))
 
 
 
   ## Extract needed information for fixed effects
-  Vcov <- vcov(fm, useScale = FALSE)
+  Vcov <- stats::vcov(fm, useScale = FALSE)
   v.delta <- Vcov
-  betas <- fixef(fm)
+  betas <- lme4::fixef(fm)
   se <- sqrt(diag(Vcov))
 
 
@@ -270,18 +272,21 @@ get.mle <- function(data.set,nAGQ=20){
 ## Function for glmmPQL ##
 ##########################
 
+#' @import stats
+#' @import MASS
+#' @importFrom lme4 fixef
 get.pql <- function(data.set){
 
   znam <- paste("Z",1:(ncol(data.set)-2),sep="")
-  fmla <- as.formula(paste("Y~-1 +",paste(znam,collapse="+")))
+  fmla <- stats::as.formula(paste("Y~-1 +",paste(znam,collapse="+")))
 
-  fm <- glmmPQL(fixed=fmla,random=~1|family,
+  fm <- MASS::glmmPQL(fixed=fmla,random=~1|family,
      		data=data.set,family=binomial,niter=100,verbose=FALSE)
 
   ## Extract needed information for fixed effects
-  Vcov <- vcov(fm, useScale = FALSE)
+  Vcov <- stats::vcov(fm, useScale = FALSE)
   v.delta <- Vcov
-  betas <- fixef(fm)
+  betas <- lme4::fixef(fm)
   se <- sqrt(diag(Vcov))
 
 
@@ -466,6 +471,7 @@ myfunc2 <- function(theta){
 #####################
 
 ## out : results from simulations()
+#' @import stats
 ana.results <- function(nsimu,p,beta.est, beta.var,
                         beta.mle, beta.mle.var,
 			beta.pql, beta.pql.var,
@@ -521,7 +527,7 @@ ana.results <- function(nsimu,p,beta.est, beta.var,
     tmp1 <- abs(sweep(beta.est,MARGIN=2,betat,`-`))
     tmp2 <- tmp1/sqrt(beta.var.est)
     ##tmp2 <- sweep(tmp1,MARGIN=2,sqrt(beta.var.est),`/`)
-    tmp3 <- apply(tmp2,1,pnorm)<0.975
+    tmp3 <- apply(tmp2,1,stats::pnorm)<0.975
 
     if(length(betat)==1) {
       cov.prob <- sum(tmp3)/nsimu
@@ -568,9 +574,9 @@ ana.results <- function(nsimu,p,beta.est, beta.var,
 
 
    ## 95\% confidence interval
-   get.ci <- function(beta,var,alpha=0.05){
-     hi <- beta + qnorm(1-alpha/2)*sqrt(var)
-     lo <- beta - qnorm(1-alpha/2)*sqrt(var)
+   get.ci <- function(beta,var.tmp,alpha=0.05){
+     hi <- beta + qnorm(1-alpha/2)*sqrt(var.tmp)
+     lo <- beta - qnorm(1-alpha/2)*sqrt(var.tmp)
      list(hi=hi,lo=lo)
    }
    semi.ci <- get.ci(beta.semi,beta.var.est)
@@ -603,14 +609,15 @@ ana.results <- function(nsimu,p,beta.est, beta.var,
 
 }
 
-
+#' @importFrom Matrix rankMatrix
+#' @importFrom stats pchisq
 hausman.test <- function(beta.semi,beta.mle1,var.semi,var.mle){
    beta.diff <- beta.semi-beta.mle1
    var.diff  <- var.semi-var.mle
-   k <- as.numeric(rankMatrix(as.matrix(var.diff)))
+   k <- as.numeric(Matrix::rankMatrix(as.matrix(var.diff)))
    test.statistic <- as.matrix(beta.diff) %*%  solve(var.diff)
    test.statistic <- test.statistic %*% t(as.matrix(beta.diff))
-   p.value <- 1 - pchisq(test.statistic, k)
+   p.value <- 1 - stats::pchisq(test.statistic, k)
    reject.h0 <- p.value < 0.05
 
    haus.out <- cbind(test.statistic,k,p.value,reject.h0)
