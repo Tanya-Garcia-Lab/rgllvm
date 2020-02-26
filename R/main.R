@@ -13,8 +13,8 @@
 #'@param x.data (N by (1+p)) matrix of the subject ID (first column) and p-many repeated-measure covariates that exert a fixed effect in the model.
 #'The data is in long format where each row is one time point per subject and N is the total number of repeated measures for all subjects.
 #'@param z.data (N by (1+q)) matrix of the subject ID (first column) and q-many repeated-measure covariates that have an associated random effect.
-#'The data is in long format where each row is one time point per subject and N is the total number of repeated measures for all subjects.
-#' \code{z.data} is allowed to be NULL, in which case the odel assumes the random effect is a random intercept. Default is NULL.
+#'The data is in long format where each row is one time point per subject and N is the total number of repeated measures for all subjects. Currently,
+#'only q=1 is implemented. \code{z.data} is allowed to be NULL, in which case the model assumes the random effect is a random intercept. Default is NULL.
 #'@param n scalar denoting the number of sujects in the study.
 #'@param m n-dimensional vector containing the number of repeated measures per subject.
 #'@param p scalar denoting the number of fixed effects in the model.
@@ -84,19 +84,20 @@ rgllvm <- function(y.data,x.data,z.data,
   maxm <- max(m)
 
 
-  ########################################################
-  ## put data sets into the forms needed for estimation ##
-  ########################################################
-  y <- create.wide.form(y.data,n,m)
-  x <- create.wide.form(x.data,n,m)
-  if(!is.null(z.data)){
-    z <- create.wide.form(z.data,n,m)
-  }
-
   ################################
   ## set terms in common module ##
   ################################
   if(is.null(z.data)){
+
+    ######################################################################
+    ## put data sets into the forms needed for estimation with f90 code ##
+    ######################################################################
+    y <- create.wide.form(y.data,n,m)
+    x <- create.wide.form(x.data,n,m)
+    if(!is.null(z.data)){
+      z <- create.wide.form(z.data,n,m)
+    }
+
     ###########################################
     ## latent variable is a random intercept ##
     ###########################################
@@ -144,29 +145,26 @@ rgllvm <- function(y.data,x.data,z.data,
 
   }
 
-  ## Put data in format so that glmer can work
-  data.set <- make.data.set(n,m,p,y,x)$data.set.out
+  #####################################################################
+  ## concatenate long-form data sets for estimation with MLE and PQL ##
+  #####################################################################
+  data.set <- make.data.set(n,m,p,y.data,x.data,z.data)
 
   ## get mle estimate
-  mle.out <- get.mle(data.set,nAGQ=20)
+  mle.out <- get.mle(data.set,p,z.data,nAGQ=20)
   beta.mle <- mle.out$betas
   beta.mle.var <- as.matrix(mle.out$betas.var)
-  sigma2.mle <- mle.out$sigma2
-  sigma2.mle.sd <- mle.out$sigma2.sd
 
   ## get glmmPQL estimate
-  pql.out <- get.pql(data.set)
+  pql.out <- get.pql(data.set,p,z.data)
   beta.pql <- pql.out$betas
   beta.pql.var <- as.matrix(pql.out$betas.var)
 
 
 
-
-
   return(list(beta.est=beta.est,beta.var=beta.var,
        beta.mle=beta.mle,beta.mle.var=beta.mle.var,
-       beta.pql=beta.pql,beta.pql.var=beta.pql.var,
-       sigma2.mle=sigma2.mle,sigma2.mle.sd=sigma2.mle.sd))
+       beta.pql=beta.pql,beta.pql.var=beta.pql.var))
 }
 
 ################################################
@@ -297,26 +295,13 @@ make.data.f90 <- function(y,z){
 ## Function to  make data suitable for glme4 ##
 ###############################################
 
-make.data.set <- function(n,m,p,y,z){
+make.data.set <- function(n,m,p,y.data,x.data,z.data){
   ## vector indicating which family each observation belongs
   family <- rep(1:n,times=m)
 
-  ## make  y into a vector of values
-  new.y <- as.vector(t(y))
-  new.y <- as.vector(na.omit(new.y))
-
-  ## make z into a matrix of values
-  z.values <- NULL
-  for (s in 1:p){
-    new.z <- z[,,s]
-    new.z <- as.vector(t(new.z))
-    new.z <- as.vector(na.omit(new.z))
-    z.values <- cbind(z.values,new.z)
-  }
-
-  data.set.out <- data.frame(cbind(family,new.y,z.values))
-  colnames(data.set.out) <- c("family","Y",paste("Z",1:p,sep=""))
-  list(data.set.out=data.set.out)
+  data.set.out <- data.frame(cbind(family,y.data[,-1],x.data[,-1],z.data[-1]))
+  colnames(data.set.out) <- c("family","Y",paste("X",1:p,sep=""),"Z")
+  return(data.set.out)
 }
 
 
@@ -326,27 +311,22 @@ make.data.set <- function(n,m,p,y,z){
 
 #' @import lme4
 #' @import stats
-get.mle <- function(data.set,nAGQ=20){
+get.mle <- function(data.set,p,z.data,nAGQ=20){
 
-  ##Y <- data.set$Y
-  ##family <- data.set$family
-  ##rm.columns <- as.vector(na.omit(match(colnames(data.set),c("family","Y"))))
-  ##other.data <- data.frame(data.set[,-rm.columns])
-  ##colnames(other.data) <- paste("Z",1:ncol(other.data),sep="")
-  ##data.use <- data.frame(Y,family,other.data)
-  ##fm <- glmer(Y ~ -1+ . +(1|family),
-  ##            data=data.use,
-  ##            family=binomial,nAGQ=20)
+  xnam <- paste0("X",1:p)
 
+  if(is.null(z.data)){
+    ## random intercept only
+    xnam <- c(xnam,"(1|family)")
+  } else {
+    # random slope
+    xnam <- c(xnam,"(0+Z|family)")
+  }
 
-  znam <- paste("Z",1:(ncol(data.set)-2),sep="")
-  znam <- c(znam,"(1|family)")
-  fmla <- stats::as.formula(paste("Y~-1 +",paste(znam,collapse="+")))
-##  fmla <- as.formula(paste("Y~",paste(znam,collapse="+")))
+  fmla <- stats::as.formula(paste("Y~-1 +",paste(xnam,collapse="+")))
 
   fm <- lme4::glmer(fmla,data=data.set,family=binomial,nAGQ=nAGQ,
      	control=lme4::glmerControl(optimizer="bobyqa"))
-
 
 
   ## Extract needed information for fixed effects
@@ -354,28 +334,14 @@ get.mle <- function(data.set,nAGQ=20){
   v.delta <- Vcov
   betas <- lme4::fixef(fm)
   se <- sqrt(diag(Vcov))
+  zval <- betas / se
+  pval <- 2 * stats::pnorm(abs(zval), lower.tail = FALSE)
 
-
-##  zval <- betas / se
-##  pval <- 2 * pnorm(abs(zval), lower.tail = FALSE)
-##  out.fixed <- cbind(betas, se, zval, pval)
-
-  ## Extract needed information for random effects (returns Std. deviation, not std. error!)
-  ##s2 <- VarCorr(fm)$`data.set$family`
-  ##ntmp <- nrow(ranef(fm)$`data.set$family`)
-  ##CI <- (ntmp-1) * s2/  qchisq(c(0.975, 0.025), df = ntmp - 1)
-  ##out.rand <- c(s2,CI)
-  ##names(out.rand) <- c("variance","CI-lo","CI-hi")
-
-  ## Easier way to extract information for random effects
-  ##remat <- summary(fm)@REmat
-  ##s2 <- as.numeric(remat[,"Variance"])
-  ##s2.sd <- as.numeric(remat[,"Std.Dev."])
-  s2 <-0
-  s2.sd <-0
-
-  list(betas=betas,betas.var=v.delta,sigma2=s2,sigma2.sd=s2.sd)
-  ##list(out.fixed=out.fixed,out.rand=out.rand)
+  return(list(betas=betas,
+       betas.var=v.delta,
+       se=se,
+       zval=zval,
+       pval=pval))
 }
 
 
@@ -387,13 +353,22 @@ get.mle <- function(data.set,nAGQ=20){
 #' @import stats
 #' @import MASS
 #' @importFrom lme4 fixef
-get.pql <- function(data.set){
+get.pql <- function(data.set,p,z.data){
 
-  znam <- paste("Z",1:(ncol(data.set)-2),sep="")
-  fmla <- stats::as.formula(paste("Y~-1 +",paste(znam,collapse="+")))
 
-  fm <- MASS::glmmPQL(fixed=fmla,random=~1|family,
-     		data=data.set,family=binomial,niter=100,verbose=FALSE)
+  xnam <- paste("X",1:p,sep="")
+  fmla <- stats::as.formula(paste("Y~-1 +",paste(xnam,collapse="+")))
+
+  if(is.null(z.data)){
+    ## random intercept only
+    fm <- MASS::glmmPQL(fixed=fmla,random=~1|family,
+                        data=data.set,family=binomial,niter=100,verbose=FALSE)
+  } else {
+    ## random slope only
+    fm <- MASS::glmmPQL(fixed=fmla,random=~Z|family,
+                        data=data.set,family=binomial,niter=100,verbose=FALSE)
+
+  }
 
   ## Extract needed information for fixed effects
   Vcov <- stats::vcov(fm, useScale = FALSE)
@@ -401,27 +376,7 @@ get.pql <- function(data.set){
   betas <- lme4::fixef(fm)
   se <- sqrt(diag(Vcov))
 
-
-##  zval <- betas / se
-##  pval <- 2 * pnorm(abs(zval), lower.tail = FALSE)
-##  out.fixed <- cbind(betas, se, zval, pval)
-
-  ## Extract needed information for random effects (returns Std. deviation, not std. error!)
-  ##s2 <- VarCorr(fm)$`data.set$family`
-  ##ntmp <- nrow(ranef(fm)$`data.set$family`)
-  ##CI <- (ntmp-1) * s2/  qchisq(c(0.975, 0.025), df = ntmp - 1)
-  ##out.rand <- c(s2,CI)
-  ##names(out.rand) <- c("variance","CI-lo","CI-hi")
-
-  ## Easier way to extract information for random effects
-  ##remat <- summary(fm)@REmat
-  ##s2 <- as.numeric(remat[,"Variance"])
-  ##s2.sd <- as.numeric(remat[,"Std.Dev."])
-  s2 <-0
-  s2.sd <-0
-
-  list(betas=betas,betas.var=v.delta,sigma2=s2,sigma2.sd=s2.sd)
-  ##list(out.fixed=out.fixed,out.rand=out.rand)
+  return(list(betas=betas,betas.var=v.delta,sigma2=s2,sigma2.sd=s2.sd))
 }
 
 
