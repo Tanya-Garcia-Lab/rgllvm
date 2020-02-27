@@ -59,6 +59,9 @@
 #'   \item{beta.pql.var:}{estimated variances of the fixed effects from the penalized quasi-likelihood estimator.}
 #' }
 #'@export
+#'
+#' @importFrom lqmm gauss.quad
+#' @importFrom nleqslv nleqslv
 rgllvm <- function(y.data,x.data,z.data,
                    n,m,p,
                    beta0=rep(0,p),
@@ -78,25 +81,28 @@ rgllvm <- function(y.data,x.data,z.data,
     }
   }
 
+  if(ncol(z.data)>2){
+    stop("Current code only allows one random slope.")
+  }
+
   ###############################################
   ## Set parameters for where to store results ##
   ###############################################
   maxm <- max(m)
 
+  ######################################################################
+  ## put data sets into the forms needed for estimation with f90 code ##
+  ######################################################################
+  y <- create.wide.form(y.data,n,m)
+  x <- create.wide.form(x.data,n,m)
+  if(!is.null(z.data)){
+    z <- create.wide.form(z.data,n,m)
+  }
 
   ################################
   ## set terms in common module ##
   ################################
   if(is.null(z.data)){
-
-    ######################################################################
-    ## put data sets into the forms needed for estimation with f90 code ##
-    ######################################################################
-    y <- create.wide.form(y.data,n,m)
-    x <- create.wide.form(x.data,n,m)
-    if(!is.null(z.data)){
-      z <- create.wide.form(z.data,n,m)
-    }
 
     ###########################################
     ## latent variable is a random intercept ##
@@ -142,8 +148,85 @@ rgllvm <- function(y.data,x.data,z.data,
     ## latent variable is a random slope ##
     #######################################
 
+    ## set up where to store results
+    simu1=rep(0,p)
+    simu2=rep(0,p)
+
+    ## set up variables for the analysis
+    x1 <- create.list.form(x.data,n,m)
+    c1 <- n
+    u1 <- rep(0,c1)
+
+    GLrule <- lqmm::gauss.quad(10,kind="hermite")
+    t1 <- GLrule[[1]]
+    w1 <- GLrule[[2]]
+
+    esteqf2 <- function(beta) {
+      esteqf11=esteqfc(y,x1,z,u1,mu,sigma,t1,w1,beta)
+
+      return (esteqf11/c1)
+    }
+
+    u2 <- allu(y,z)
+    u1 <- getnewu(u2)
+
+    ebeta <- nleqslv::nleqslv(tbeta+0.1,esteqf2)
+
+    for (j in 1:p) {
+      simu1[j]=ebeta[[1]][j]
+      simu2[j]=simu1[j]
+    }
+
+    ##To calculate the sandwich matrix of estiamted beta.
+    ##sandmid is the middle part for calculating the sandwich matrix.
+
+    mu <- 0; sigma <- 1 # used for MLE estimates, but not needed for our purposes.
+
+    temp1=esteqc(y,x1,z,u1,mu,sigma,t1,w1,simu2)
+    temp2=rep(0,p)
+    temp3=matrix(0,p,p)
+    temp4=matrix(0,p,p)
+
+    for (s in 1:c1) {
+      temp2=temp1[[s]]
+      temp2=as.matrix(temp2)
+      temp3=temp2%*%t(temp2)
+      temp4=temp4+temp3
+    }
+
+
+    A=matrix(0,p,p)
+    temp5=matrix(0,p,p)
+    for (s in 1:c1) {
+        delta=simu2*0.001
+        betal=simu2
+        betar=simu2
+
+
+
+        for (tt in 1:p) {
+          betal[tt]=simu2[tt]-delta[tt]
+          betar[tt]=simu2[tt]+delta[tt]
+          yout1=efficientscorefc(y[s,],x1[[s]],z[s,],u1[[s]],mu,sigma,t1,w1,betal)
+          yout2=efficientscorefc(y[s,],x1[[s]],z[s,],u1[[s]],mu,sigma,t1,w1,betar)
+          A[,tt]=(yout2-yout1)/(2*delta[tt])
+          betal=simu2
+          betar=simu2
+        }
+
+        temp5=temp5+A
+
+    }
+
+    betaestvari=solve(temp5)%*%temp4%*%t(solve(temp5))
+
+    ## for the output
+    beta.est <- ebeta
+    beta.var <- betaestvari
 
   }
+
+
 
   #####################################################################
   ## concatenate long-form data sets for estimation with MLE and PQL ##
@@ -195,6 +278,31 @@ create.wide.form <- function(x,n,m){
     } else {
       out[ll,1:length(data.tmp)] <- data.to.organize[data.tmp,]
     }
+  }
+
+  return(out)
+}
+
+
+
+################################################
+## functions to transform data into list form ##
+################################################
+create.list.form <- function(x,n,m){
+  subjectID <- x[,1]
+  data.to.organize <- data.frame(x[,-1])
+  lb <- ncol(data.to.organize)
+  uniqueID <- unique(subjectID)
+
+  if(length(uniqueID)!=n){
+    stop("The number of unique subject ID's in the data does not match the sample size n.")
+  }
+
+  out <- vector("list",n)
+
+  for(ll in 1:length(uniqueID)){
+    data.tmp <- which(x[,1]==uniqueID[ll])
+    out[[ll]] <- as.matrix(data.to.organize[data.tmp,])
   }
 
   return(out)
@@ -530,6 +638,67 @@ myfunc2 <- function(theta){
   den <- 1+ exp(theta)
   return(num/den)
 }
+
+
+
+
+
+
+
+
+#####################################
+## Functions used for random slope ##
+#####################################
+
+
+#This is the function to obtain U for all i, here y is an n*m matrix, and z is an n*m matrix.#
+allu <- function(y,z) {
+  nofy=nrow(y)
+  allu1=vector("list",nofy)
+  for (i in 1:nofy) {
+    allu1[[i]]=select.vv.random.slope(y[i,],z[i,])
+  }
+  return (allu1)
+}
+
+
+
+# function to find all possible u such that u_1+u_2+...+u_(m-1) equals to wi-y[i,1], here, y abd z are m dimentional vecotr for i-th cluster data#
+select.vv.random.slope <- function(y,z){
+  m=length(y)
+  m.tmp <- m-1
+  mat.tmp <- matrix(rep(c(0,1),each=m.tmp),ncol=m.tmp,nrow=2,byrow=TRUE)
+  vv.combinations <-as.matrix(do.call(`expand.grid`,as.data.frame(mat.tmp)))
+  n=nrow(vv.combinations)
+  tmp=rep(0,n)
+
+  for (i in 1:n) {
+    tmp[i]=sum(vv.combinations[i,]*z[2:m])
+  }
+  wi=getwic(y,z)
+  ##  index <- which(tmp<wi & tmp>=(wi-z[1]))
+  index <- which(tmp==(wi-y[1]*z[1]))
+  uall=vv.combinations[index,]
+  uall1=unname(uall)
+
+  return (uall1)
+}
+
+
+#This is the function to obtain suitable u, because previous one has vector inside and needs to be converted to matrix for later computation.#
+getnewu <- function(u) {
+  n=length(u)
+
+  for (i in 1:n) {
+    if (is.vector(u[[i]])) {
+      u[[i]]=t(as.matrix(u[[i]]))
+    }
+  }
+  return (u)
+}
+
+
+
 
 
 

@@ -22,8 +22,10 @@ LazyData: true
 Depends: R (>= 3.0.1), stats
 Imports:
  lme4, 
+ lqmm,
  MASS,
  Matrix,
+ nleqslv,
  rootSolve
 Collate:
  rgllvm.R
