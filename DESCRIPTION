@@ -26,7 +26,9 @@ Imports:
  MASS,
  Matrix,
  nleqslv,
- rootSolve
+ rootSolve,
+ Rcpp (>= 0.12.9)
+LinkingTo: Rcpp, RcppArmadillo, RcppNumerical, RcppEigen
 Collate:
  rgllvm.R
  main.R

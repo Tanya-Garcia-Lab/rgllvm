@@ -5,34 +5,41 @@
 \alias{rgllvm}
 \title{rgllvm package}
 \usage{
-rgllvm(y, x, z, n, m, p, beta0 = rep(0, p))
+rgllvm(y.data, x.data, z.data, n, m, p, beta0 = rep(0, p), family = "binomial")
 }
 \arguments{
-\item{y}{xx}
+\item{y.data}{(N by 2) matrix of the subject ID (first column) and repeated-measures outcome (second column).
+The data is in long format, where each row is one time point per subject and N is the total number of repeated measures for all subjects.}
 
-\item{x}{XXX}
+\item{x.data}{(N by (1+p)) matrix of the subject ID (first column) and p-many repeated-measure covariates that exert a fixed effect in the model.
+The data is in long format where each row is one time point per subject and N is the total number of repeated measures for all subjects.}
 
-\item{z}{xxx}
+\item{z.data}{(N by (1+q)) matrix of the subject ID (first column) and q-many repeated-measure covariates that have an associated random effect.
+The data is in long format where each row is one time point per subject and N is the total number of repeated measures for all subjects. Currently,
+only q=1 is implemented. \code{z.data} is allowed to be NULL, in which case the model assumes the random effect is a random intercept. Default is NULL.}
 
-\item{n}{xxx}
+\item{n}{scalar denoting the number of sujects in the study.}
 
-\item{m}{xxxx}
+\item{m}{n-dimensional vector containing the number of repeated measures per subject.}
 
-\item{p}{xxx}
+\item{p}{scalar denoting the number of fixed effects in the model.}
 
-\item{beta0}{xxx}
+\item{beta0}{p-dimensional vector containing the initial estimate of the fixed effect parameters. Default is a p-dimensional vector of zeroes.}
+
+\item{family}{character vector denoting the type of generalized linear model. Code currently only implements family="binomial"
+for the logistic model.}
 }
 \value{
 \code{rgllvm} returns a list containing
 \itemize{
-  \item{beta.est:}{xx}
-  \item{beta.var:}{xx}
-  \item{beta.mle:}{xx}
-  \item{beta.mle.var:}{xx}
-  \item{beta.pql:}{xx}
-  \item{beta.pql.var:}{xx}
-  \item{sigma2.mle:}{xxx}
-  \item{sigma2.mle.sd:}{xxx}
+  \item{beta.est:}{fixed effect estimates from the semiparametric estimator
+  that does not make any distributional assumptions on the latent variable.}
+  \item{beta.var:}{estimated variances of the fixed effects from the  semiparametric
+  estimator that does not make any distributional assumptions on the latent variable}
+  \item{beta.mle:}{fixed effect estimates from the maximum likelihood estimator.}
+  \item{beta.mle.var:}{estimated variances of the fixed effect estimates from the maximum likelihood estimator.}
+  \item{beta.pql:}{fixed effect estimates from the penalized quasi-likelihood estimator.}
+  \item{beta.pql.var:}{estimated variances of the fixed effects from the penalized quasi-likelihood estimator.}
 }
 }
 \description{
@@ -41,10 +48,18 @@ generalized linear latent variable model where the latent variable
 is a random intercept or random slope, and the distribution
 of the latent variable is left unknown
 
-Function estimates parameters in a generalized linear latent variable model
-where the latent variable is a random intercept or slope, and the distribution
-of the latent variable is left unspecified.
+Estimates parameters for repeated measures data using a generalized linear latent variable model
+where the latent variable is a random intercept or random slope.
 }
+\section{Details}{
+
+This function reports three ways to estimate parameters for repeated measures data using a generalized linear latent variable model.
+The first is a semiparametric approach where the distribution of the latent variable is left unspecified. The second is the maximum likelihood
+estimator which assumes the latent variable is normally distributed with mean zero.
+The third is the penalized quasi-likihood estimator which does not assume the
+latent variable is normally distributed, only that it has zero mean and finite variance.
+}
+
 \references{
 Wei, Y., Ma, Y., Garcia, T.P. and Sinha, S. (2019). Consistent estimator
 for logistic mixed effect models. The Canadian Journal of Statistics, 47, 140-156. doi:10.1002/cjs.11482.
@@ -52,4 +67,19 @@ for logistic mixed effect models. The Canadian Journal of Statistics, 47, 140-15
 Garcia, T.P. and Ma, Y. (2015). Optimal estimator for
 logistic model with distribution-free random intercept.
 Scandinavian Journal of Statistics, 43, 156-171.
+
+Breslow, N. E. & Clayton, D. G. (1993). Approximate inference in generalized linear mixed models.
+Journal of the American Statistical Association 88, 9-25.
+
+Garcia, T.P. and Ma, Y. (2015). Optimal estimator for
+logistic model with distribution-free random intercept.
+Scandinavian Journal of Statistics, 43, 156-171.
+
+Ma, Y. & Genton, M. G. (2010). Explicit estimating equations for semiparametric generalized
+linear latent variable models. Journal of the Royal Statistical Society, Series B 72, 475-495.
+
+Schall, R. (1991) Estimation in generalized linear models with random effects. Biometrika 78, 719-727.
+
+Wei, Y., Ma, Y., Garcia, T.P. and Sinha, S. (2019). Consistent estimator
+for logistic mixed effect models. The Canadian Journal of Statistics, 47, 140-156. doi:10.1002/cjs.11482.
 }
