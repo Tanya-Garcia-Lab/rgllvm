@@ -14,7 +14,6 @@ extern SEXP _rgllvm_esteqbetaic(SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_esteqc(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_esteqfc(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_exppartin5c(SEXP, SEXP, SEXP, SEXP);
-extern SEXP _rgllvm_fastLRp_(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_firderPCLaikc(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_firdertest1(SEXP);
 extern SEXP _rgllvm_formula5denoc(SEXP, SEXP, SEXP, SEXP);
@@ -55,7 +54,6 @@ static const R_CallMethodDef CallEntries[] = {
   {"_rgllvm_esteqc",           (DL_FUNC) &_rgllvm_esteqc,            9},
   {"_rgllvm_esteqfc",          (DL_FUNC) &_rgllvm_esteqfc,           9},
   {"_rgllvm_exppartin5c",      (DL_FUNC) &_rgllvm_exppartin5c,       4},
-  {"_rgllvm_fastLRp_",         (DL_FUNC) &_rgllvm_fastLRp_,          6},
   {"_rgllvm_firderPCLaikc",    (DL_FUNC) &_rgllvm_firderPCLaikc,     8},
   {"_rgllvm_firdertest1",      (DL_FUNC) &_rgllvm_firdertest1,       1},
   {"_rgllvm_formula5denoc",    (DL_FUNC) &_rgllvm_formula5denoc,     4},

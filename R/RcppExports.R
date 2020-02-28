@@ -129,7 +129,3 @@ sfisherinforinv <- function(x, beta) {
     .Call('_rgllvm_sfisherinforinv', PACKAGE = 'rgllvm', x, beta)
 }
 
-fastLRp_ <- function(x, y, start, eps_f, eps_g, maxit) {
-    .Call('_rgllvm_fastLRp_', PACKAGE = 'rgllvm', x, y, start, eps_f, eps_g, maxit)
-}
-

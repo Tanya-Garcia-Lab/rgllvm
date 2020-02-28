@@ -494,19 +494,3 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// fastLRp_
-Rcpp::List fastLRp_(Rcpp::NumericMatrix x, Rcpp::NumericVector y, Rcpp::NumericVector start, double eps_f, double eps_g, int maxit);
-RcppExport SEXP _rgllvm_fastLRp_(SEXP xSEXP, SEXP ySEXP, SEXP startSEXP, SEXP eps_fSEXP, SEXP eps_gSEXP, SEXP maxitSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type x(xSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type y(ySEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type start(startSEXP);
-    Rcpp::traits::input_parameter< double >::type eps_f(eps_fSEXP);
-    Rcpp::traits::input_parameter< double >::type eps_g(eps_gSEXP);
-    Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
-    rcpp_result_gen = Rcpp::wrap(fastLRp_(x, y, start, eps_f, eps_g, maxit));
-    return rcpp_result_gen;
-END_RCPP
-}
