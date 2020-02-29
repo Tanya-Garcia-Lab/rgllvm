@@ -16,7 +16,7 @@ The data is in long format where each row is one time point per subject and N is
 
 \item{z.data}{(N by (1+q)) matrix of the subject ID (first column) and q-many repeated-measure covariates that have an associated random effect.
 The data is in long format where each row is one time point per subject and N is the total number of repeated measures for all subjects. Currently,
-only q=1 is implemented. \code{z.data} is allowed to be NULL, in which case the model assumes the random effect is a random intercept. Default is NULL.}
+only q=1 is implemented.}
 
 \item{n}{scalar denoting the number of sujects in the study.}
 
@@ -49,7 +49,7 @@ is a random intercept or random slope, and the distribution
 of the latent variable is left unknown
 
 Estimates parameters for repeated measures data using a generalized linear latent variable model
-where the latent variable is a random intercept or random slope.
+where the latent variable is a random slope.
 }
 \section{Details}{
 

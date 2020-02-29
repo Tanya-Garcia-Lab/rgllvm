@@ -14,6 +14,7 @@ extern SEXP _rgllvm_esteqbetaic(SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_esteqc(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_esteqfc(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_exppartin5c(SEXP, SEXP, SEXP, SEXP);
+extern SEXP _rgllvm_fastLRp_(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_firderPCLaikc(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_firdertest1(SEXP);
 extern SEXP _rgllvm_formula5denoc(SEXP, SEXP, SEXP, SEXP);
@@ -41,12 +42,6 @@ extern SEXP _rgllvm_varofsthetac(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _rgllvm_xbetamatrixc(SEXP, SEXP);
 extern SEXP _rgllvm_yin5c(SEXP, SEXP, SEXP);
 
-/* .Fortran calls */
-extern void F77_NAME(do_allocations)(void *, void *, void *, void *);
-extern void F77_NAME(estimation_logistic)(void *, void *, void *, void *, void *, void *, void *);
-extern void F77_NAME(getvv_terms)(void *, void *, void *);
-extern void F77_NAME(store_n1m1)(void *, void *);
-
 static const R_CallMethodDef CallEntries[] = {
   {"_rgllvm_efficientscorefc", (DL_FUNC) &_rgllvm_efficientscorefc,  9},
   {"_rgllvm_esteqallbetaic",   (DL_FUNC) &_rgllvm_esteqallbetaic,    3},
@@ -54,6 +49,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_rgllvm_esteqc",           (DL_FUNC) &_rgllvm_esteqc,            9},
   {"_rgllvm_esteqfc",          (DL_FUNC) &_rgllvm_esteqfc,           9},
   {"_rgllvm_exppartin5c",      (DL_FUNC) &_rgllvm_exppartin5c,       4},
+  {"_rgllvm_fastLRp_",         (DL_FUNC) &_rgllvm_fastLRp_,          6},
   {"_rgllvm_firderPCLaikc",    (DL_FUNC) &_rgllvm_firderPCLaikc,     8},
   {"_rgllvm_firdertest1",      (DL_FUNC) &_rgllvm_firdertest1,       1},
   {"_rgllvm_formula5denoc",    (DL_FUNC) &_rgllvm_formula5denoc,     4},
@@ -83,16 +79,8 @@ static const R_CallMethodDef CallEntries[] = {
   {NULL, NULL, 0}
 };
 
-static const R_FortranMethodDef FortranEntries[] = {
-  {"do_allocations",      (DL_FUNC) &F77_NAME(do_allocations),      4},
-  {"estimation_logistic", (DL_FUNC) &F77_NAME(estimation_logistic), 7},
-  {"getvv_terms",         (DL_FUNC) &F77_NAME(getvv_terms),         3},
-  {"store_n1m1",          (DL_FUNC) &F77_NAME(store_n1m1),          2},
-  {NULL, NULL, 0}
-};
-
 void R_init_rgllvm(DllInfo *dll)
 {
-  R_registerRoutines(dll, NULL, CallEntries, FortranEntries, NULL);
+  R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
   R_useDynamicSymbols(dll, FALSE);
 }

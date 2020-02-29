@@ -1,7 +1,7 @@
 # include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
-#include <math.h>        
+#include <math.h>
 #include <RcppArmadilloExtensions/sample.h>
 #include <vector>
 
@@ -16,7 +16,7 @@ arma::mat sumofrowbycol(const arma::mat & x, const arma::vec & beta){
   int m = x.n_rows;
   arma::mat temp(m,1);
   temp.fill(0.0);
-  
+
   for (int j=0;j<m;j++) {
     temp.submat(j,0,j,0) = x.row(j)*beta;
   }
@@ -31,7 +31,7 @@ arma::mat sumofrowbycol(const arma::mat & x, const arma::vec & beta){
 // we are taking derivate with respect to
 // In this program, noticing that I use kbeta-1 instead of kbeta, because in Cpp, the index starts from 0, while in R, the index starts from 1.
 
-//This function, scoref1c,is used to calculate the j-th part of the derived score function. 
+//This function, scoref1c,is used to calculate the j-th part of the derived score function.
 
 
 // [[Rcpp::export]]
@@ -41,8 +41,8 @@ List scoref1c(const arma::vec & y, const arma::mat & x, const arma::vec & z, con
   sum1.fill(0.0);
   arma::mat product1(m,1);
   product1.fill(0.0);
-  
-  
+
+
   for (int j=0;j<m;j++) {
     sum1.submat(j,0,j,0)=y(j)*x(j,kbeta-1)-(exp(sumofrowbycol(x,beta)(j,0)+(sqrt(2)*sigma*t+mu)*z(j)))*x(j,kbeta-1)/(1+exp(sumofrowbycol(x,beta)(j,0)+(sqrt(2)*sigma*t+mu)*z(j)));
     product1.submat(j,0,j,0)=exp(y(j)*(sumofrowbycol(x,beta)(j,0)+(sqrt(2)*sigma*t+mu)*z(j))-log(1+exp(sumofrowbycol(x,beta)(j,0)+(sqrt(2)*sigma*t+mu)*z(j))));
@@ -66,22 +66,22 @@ List scoref2c(const arma::vec & y, const arma::mat & x, const arma::vec & z, con
   double product2=1;
   double numerator;
   double denominator;
-  
+
   for (int i=0;i<m;i++) {
     product2=product2*product1(i,0);
   }
-  
+
   numerator=sum2*product2;
   denominator=product2;
-  
+
   return Rcpp::List::create(
     Rcpp::Named("numerator.") = numerator,
-    Rcpp::Named("denominator.")=denominator 
+    Rcpp::Named("denominator.")=denominator
   ) ;
 }
 
 //This function, scoreffinalc, is used to calculate the score function, we use Gauss Hermite Quadrature to calculate the numerator and denominator separately, then taking the quotient. t and w are from GHPW. For example, t=unlist(GHPW(30)[[1]]) abd w=unlist(GHPW(30)[[2]]).
-// The input y should m dimensional vector, x should (m,p) dimensional matrix, z should be m dimensional vector, mu,sigma is one dimensional real number,beta should be p dimensional vector,kbeta is the parameter indicating which beta we are taking derivative with respect to. 
+// The input y should m dimensional vector, x should (m,p) dimensional matrix, z should be m dimensional vector, mu,sigma is one dimensional real number,beta should be p dimensional vector,kbeta is the parameter indicating which beta we are taking derivative with respect to.
 
 
 // [[Rcpp::export]]
@@ -91,26 +91,26 @@ double scoreffinalc(const arma::vec & y, const arma::mat & x, const arma::vec & 
   arma::mat denominator2(len,1);
   numerator2.fill(0.0);
   denominator2.fill(0.0);
-  
+
   for (int l=0;l<len;l++) {
     double tempw=w(l);
     double tempt=t(l);
-    
+
     arma::vec tempscoref2c1=scoref2c(y,x,z,mu,sigma,tempt,beta,kbeta)(0);
     arma::vec tempscoref2c2=scoref2c(y,x,z,mu,sigma,tempt,beta,kbeta)(1);
-    
+
     double tempscoref2c1d=accu(tempscoref2c1);
     double tempscoref2c2d=accu(tempscoref2c2);
-    
+
     numerator2(l)=tempw*tempscoref2c1d;
     denominator2(l)=tempw*tempscoref2c2d;
-    
+
   }
   double numerator2sum=accu(numerator2);
   double denominator2sum=accu(denominator2);
   double scorefunctionfinal=numerator2sum/denominator2sum;
-  
-  return (scorefunctionfinal);  
+
+  return (scorefunctionfinal);
 }
 
 //This function, getwic, is used to get W_i in equation (5), since now our z_ij is one dimention, wi is just a real number.
@@ -119,7 +119,7 @@ double scoreffinalc(const arma::vec & y, const arma::mat & x, const arma::vec & 
 double getwic(const arma::vec & y, const arma::vec & z) {
   arma::vec temp1=y.t()*z;
   double wi=accu(temp1);
-  
+
   return (wi);
 }
 
@@ -152,12 +152,12 @@ List getzilrc(const arma::vec & z) {
   minv.submat(0,1,dimz-1,dimz-1)=minvr;
   arma::mat zirtrans(1,dimz-1);
   zirtrans=zir.t();
-  
+
   return Rcpp::List::create(
     Rcpp::Named("z_iL.") = zil,
     Rcpp::Named("z_iL inverse.") = zilinv,
     Rcpp::Named("z_iR.") = zirtrans,
-    Rcpp::Named("M inverse.")=minv 
+    Rcpp::Named("M inverse.")=minv
   ) ;
 }
 
@@ -173,12 +173,12 @@ List xbetamatrixc(const arma::mat & x, const arma::vec & beta) {
   arma::mat xbmatrix2(m-1,1);
   xbmatrix2.fill(0.0);
   xbmatrix1.submat(0,0,0,0)=sumofrowbycol(x,beta)(0,0);
-  
+
   for (int j=1;j<m;j++) {
     xbmatrix2.submat(j-1,0,j-1,0)=sumofrowbycol(x,beta)(j,0);
-    
+
   }
-  
+
   return Rcpp::List::create(
     Rcpp::Named("xbmatrix1.") = xbmatrix1,
     Rcpp::Named("xbmatrix2.") = xbmatrix2.t()
@@ -195,9 +195,9 @@ arma::mat exppartin5c(const arma::mat & x, const arma::vec & z, const arma::vec 
   arma::mat temp2=xbetamatrixc(x,beta)(1);
   arma::mat temp3=getzilrc(z)(1);
   arma::mat temp4=getzilrc(z)(2);
-  
+
   arma::mat exppin5=exp(temp1*(-temp3*temp4*u)+temp2*u);
-  
+
   return (exppin5);
 }
 
@@ -219,7 +219,7 @@ arma::mat yin5c(const arma::vec & y, const arma::vec & z, const arma::vec & u) {
   temp2.submat(0,1,0,dimz-1)=temp3.t();
   arma::mat temp4=getzilrc(z)(3);
   arma::mat yinfive=temp4*temp2.t();
-  
+
   return (yinfive.t());
 }
 
@@ -234,7 +234,7 @@ double formula5denoc( const arma::mat & x, const arma::vec & z, const arma::mat 
   arma::mat denotemp(1,nofu);
   denotemp.fill(0.0);
   double denosum=0;
-  
+
   for (int l=0;l<nofu;l++) {
     arma::mat utemp=u.submat(l,0,l,mofu-1);
     utemp.reshape(mofu,1);
@@ -242,7 +242,7 @@ double formula5denoc( const arma::mat & x, const arma::vec & z, const arma::mat 
     denotemp(0,l)=temp2;
   }
   denosum=accu(denotemp);
-  
+
   return (denosum);
 }
 
@@ -262,14 +262,14 @@ double formula5numerc(const arma::vec & y, const arma::mat & x, const arma::vec 
   arma::mat numertemp(1,nofu);
   numertemp.fill(0.0);
   double numersum=0;
-  
+
   for (int l=0;l<nofu;l++) {
     arma::mat utemp=u.submat(l,0,l,mofu-1);
     arma::mat mwu=yin5c(y,z,utemp.t());
     numertemp.submat(0,l,0,l)=scoreffinalc(mwu.t(),x,z,mu,sigma,t,w,beta,kbeta)*exppartin5c(x,z,utemp.t(),beta);
   }
   numersum=accu(numertemp);
-  
+
   return (numersum);
 }
 
@@ -284,12 +284,12 @@ arma::vec formula5forallkc(const arma::vec & y, const arma::mat & x, const arma:
   formula5fork.fill(0.0);
   arma::vec formula5forallk(k);
   formula5forallk.fill(0.0);
-  
+
   for (int i=0;i<k;i++) {
     formula5fork(i)=formula5numerc(y,x,z,u,mu,sigma,t,w,beta,i+1);
   }
   formula5forallk=formula5fork/deno1;
-  
+
   return (formula5forallk);
 }
 
@@ -305,12 +305,12 @@ arma::vec efficientscorefc(const arma::vec & y, const arma::mat & x, const arma:
   scoref.fill(0.0);
   arma::vec efficientf(q);
   efficientf.fill(0.0);
-  
+
   for (int i=0;i<q;i++) {
     scoref(i)=scoreffinalc(y,x,z,mu,sigma,t,w,beta,i+1);
   }
   efficientf=scoref-formula5forallkc(y,x,z,u,mu,sigma,t,w,beta);
-  
+
   return (efficientf);
 }
 
@@ -326,16 +326,16 @@ List esteqc(const arma::mat & y, const List & x, const arma::mat & z, const List
   int k=y.n_rows;
   List esteqsum(k);
   esteqsum.fill(0.0);
-  
+
   for (int i=0;i<k;i++) {
     arma::mat temp1=u(i);
     arma::vec temp2=(y.row(i)).t();
     arma::vec temp3=(z.row(i)).t();
     arma::mat temp4=x(i);
-    
+
     esteqsum(i)=efficientscorefc(temp2,temp4,temp3,temp1,mu,sigma,t,w,beta);
   }
-  
+
   return (esteqsum);
 }
 
@@ -349,14 +349,14 @@ arma::vec esteqfc(const arma::mat & y, const List & x, const arma::mat & z, cons
   int l=beta.size();
   arma::vec sum1(l);
   sum1.fill(0.0);
-  
+
   for (int j=0;j<l;j++) {
     for (int i=0;i<k;i++) {
       arma::vec temp1=esteqsum(i);
       sum1(j)=sum1(j)+temp1(j);
     }
   }
-  
+
   return (sum1);
 }
 
@@ -367,16 +367,16 @@ arma::vec esteqfc(const arma::mat & y, const List & x, const arma::mat & z, cons
 double PCLijklc(const arma::mat & xij, const arma::mat & xkl, const arma::vec & beta, const double & sigmaq, const double & t) {
   int p=beta.size();
   double temp1=0;
-  
-  
+
+
   for (int i=0;i<p;i++) {
     double temp2=xkl(0,i)*beta(i)-xij(0,i)*beta(i);
     temp1=temp1+temp2;
   }
-  
+
   double exppart=exp(temp1+sqrt(2)*sigmaq*t);
   double intpart=(1/sqrt(3.14159265358979323846))*(1/(1+exppart));
-  
+
   return (intpart);
 }
 
@@ -389,13 +389,13 @@ double PCLijklc(const arma::mat & xij, const arma::mat & xkl, const arma::vec & 
 double PCLijklalltc(const arma::mat & xij, const arma::mat & xkl, const arma::vec & beta, const double & sigmaq, const arma::vec & t, const arma::vec & w) {
   int lt=t.size();
   double temp1=0;
-  
-  
+
+
   for (int i=0;i<lt;i++) {
     double temp2=w(i)*PCLijklc(xij,xkl,beta,sigmaq,t(i));
     temp1=temp1+temp2;
   }
-  
+
   return (temp1);
 }
 
@@ -410,36 +410,36 @@ double PCLallc(const arma::mat & y,const List & x, const arma::vec & beta, const
   int n=y.n_rows;
   int m=y.n_cols;
   double temp4=0;
-  
+
   for (int i=0;i<n;i++) {
     for (int j=0;j<m;j++) {
       for (int k=i+1;k<n;k++) {
         for (int l=0;l<m;l++) {
           double temp1=y(i,j);
           double temp2=y(k,l);
-          
+
           if (temp1>0.5 && temp2<0.5) {
             arma::mat tempxi=x(i);
             arma::mat tempxij=tempxi.row(j);
             arma::mat tempxk=x(k);
             arma::mat tempxkl=tempxk.row(l);
-            
+
             double temppcl1=log(PCLijklalltc(tempxij,tempxkl,beta,sigmaq,t,w));
-            
+
             double temp3=temp1*(1-temp2)*temppcl1;
             temp4=temp4+temp3;
             continue;
-            
+
           }
-          
+
           if (temp1<0.5 && temp2>0.5) {
             arma::mat tempxi=x(i);
             arma::mat tempxij=tempxi.row(j);
             arma::mat tempxk=x(k);
             arma::mat tempxkl=tempxk.row(l);
-            
+
             double temppcl2=log(PCLijklalltc(tempxkl,tempxij,beta,sigmaq,t,w));
-            
+
             double temp3=temp2*(1-temp1)*temppcl2;
             temp4=temp4+temp3;
             continue;
@@ -448,7 +448,7 @@ double PCLallc(const arma::mat & y,const List & x, const arma::vec & beta, const
       }
     }
   }
-  
+
   return (2*temp4/(n*(n-1)));
 }
 
@@ -463,7 +463,7 @@ double PCLallc(const arma::mat & y,const List & x, const arma::vec & beta, const
 double PCLaikc(int i, int k, const arma::mat & y,const List & x,const arma::vec & beta, const double & sigmaq,const arma::vec & t,const arma::vec & w) {
   int m=y.n_cols;
   double temp4=0;
-  
+
   for (int j=0;j<m;j++) {
     for (int l=0;l<m;l++) {
       double temp1=y(i,j);
@@ -472,12 +472,12 @@ double PCLaikc(int i, int k, const arma::mat & y,const List & x,const arma::vec 
       arma::mat tempxij=tempxi.row(j);
       arma::mat tempxk=x(k);
       arma::mat tempxkl=tempxk.row(l);
-      
+
       double temp3=temp1*(1-temp2)*log(PCLijklalltc(tempxij,tempxkl,beta,sigmaq,t,w))+temp2*(1-temp1)*log(PCLijklalltc(tempxkl,tempxij,beta,sigmaq,t,w));
-      temp4=temp4+temp3;                                                                                               
+      temp4=temp4+temp3;
     }
   }
-  
+
   return (temp4);
 }
 
@@ -492,27 +492,27 @@ double PCLaikc(int i, int k, const arma::mat & y,const List & x,const arma::vec 
 
 arma::vec firderPCLaikc(int i, int k, const arma::mat & y,const List & x,const arma::vec & beta, const double & sigmaq,const arma::vec & t,const arma::vec & w) {
   int p=beta.size();
-  
+
   double delta0=sigmaq*0.001;
-  
+
   arma::vec betader(p);
   betader.fill(0.0);
-  
+
   for (int o=0;o<p;o++) {
     arma::vec deltatemp(p);
     deltatemp.fill(0.0);
     deltatemp(o)=beta(o)*0.001;
-    
+
     betader(o)=(PCLaikc(i,k,y,x,beta+deltatemp,sigmaq,t,w)-PCLaikc(i,k,y,x,beta-deltatemp,sigmaq,t,w))/(2*deltatemp(o));
-    
+
   }
-  
+
   double sigmaqder=(PCLaikc(i,k,y,x,beta,sigmaq+delta0,t,w)-PCLaikc(i,k,y,x,beta,sigmaq-delta0,t,w))/(2*delta0);
-  
+
   arma::vec firstderPCLaik(p+1);
   firstderPCLaik.subvec(0,0)=sigmaqder;
   firstderPCLaik.subvec(1,p)=betader;
-  
+
   return (firstderPCLaik);
 }
 
@@ -529,28 +529,28 @@ arma::vec firderPCLaikc(int i, int k, const arma::mat & y,const List & x,const a
 
 arma::mat secderPCLaikc(int i, int k, const arma::mat & y,const List & x,const arma::vec & beta, const double & sigmaq,const arma::vec & t,const arma::vec & w) {
   int p=beta.size();
-  
+
   double delta2=sigmaq*0.001;
-  
+
   arma::mat secderrestcol(p+1,p+1);
   secderrestcol.fill(0.0);
-  
+
   arma::vec secdercol1=(firderPCLaikc(i,k,y,x,beta,sigmaq+delta2,t,w)-firderPCLaikc(i,k,y,x,beta,sigmaq-delta2,t,w))/(2*delta2);
   secderrestcol.submat(0,0,p,0)=secdercol1;
-  
+
   for (int s=0;s<p;s++) {
     arma::vec deltatemp(p);
     deltatemp.fill(0.0);
-    
+
     deltatemp(s)=beta(s)*0.001;
-    
+
     arma::vec coltemp=(firderPCLaikc(i,k,y,x,beta+deltatemp,sigmaq,t,w)-firderPCLaikc(i,k,y,x,beta-deltatemp,sigmaq,t,w))/(2*deltatemp(s));
-    
+
     secderrestcol.submat(0,s+1,p,s+1)=coltemp;
   }
-  
+
   return (secderrestcol);
-  
+
 }
 
 
@@ -566,16 +566,16 @@ arma::mat secderPCLaikallc(const arma::mat & y,const List & x,const arma::vec & 
   int p=beta.size();
   arma::mat temp1(p+1,p+1);
   temp1.fill(0.0);
-  
+
   for (int i=0;i<n;i++) {
     for (int k=i+1;k<n;k++) {
       arma::mat temp2=secderPCLaikc(i,k,y,x,beta,sigmaq,t,w);
       temp1=temp1+temp2;
     }
   }
-  
-  return (inv(temp1));  
-  
+
+  return (inv(temp1));
+
 }
 
 //This function,varofsthetac, is used to calculate the B part of the log of the pseudo-conditional likelihood in the draft for the sandwich matrix.
@@ -590,25 +590,25 @@ arma::mat varofsthetac(const arma::mat & y,const List & x,const arma::vec & beta
   int p=beta.size();
   arma::mat temp1(p+1,p+1);
   temp1.fill(0.0);
-  
+
   arma::cube allfirderPCLaik(p+1,n,n);
   allfirderPCLaik.fill(0.0);
-  
+
   for (int i=0;i<n;i++) {
     for (int k=i+1;k<n;k++) {
       allfirderPCLaik.subcube(0,k,i,p,k,i)=firderPCLaikc(i,k,y,x,beta,sigmaq,t,w);
     }
   }
-  
+
   for (int i=0;i<n;i++) {
     for (int k=i+1;k<n;k++) {
       arma::vec temp2=allfirderPCLaik.subcube(0,k,i,p,k,i);
       temp1=temp1+temp2*trans(temp2);
     }
-    
+
   }
-  
-  
+
+
   for (int i=0;i<n;i++) {
     for (int k=i+1;k<n;k++) {
       for (int kp=i+1;kp<n;kp++) {
@@ -620,7 +620,7 @@ arma::mat varofsthetac(const arma::mat & y,const List & x,const arma::vec & beta
       }
     }
   }
-  
+
   for (int k=1;k<n;k++) {
     for (int i=0;i<k-1;i++) {
       for (int ip=0;ip<k-1;ip++) {
@@ -629,12 +629,12 @@ arma::mat varofsthetac(const arma::mat & y,const List & x,const arma::vec & beta
           arma::vec temp6=allfirderPCLaik.subcube(0,k,ip,p,k,ip);
           temp1=temp1+temp5*trans(temp6);
         }
-        
+
       }
     }
-    
+
   }
-  
+
   return (temp1);
 }
 
@@ -648,19 +648,19 @@ arma::mat varofsthetac(const arma::mat & y,const List & x,const arma::vec & beta
 arma::mat PCLsandwich(const arma::mat & y,const List & x,const arma::vec & beta, const double & sigmaq,const arma::vec & t,const arma::vec & w) {
   arma::mat a=secderPCLaikallc(y,x,beta,sigmaq,t,w);
   arma::mat b=varofsthetac(y,x,beta,sigmaq,t,w);
-  
+
   arma::mat sandwich=a*b*trans(a);
-  
+
   return (sandwich);
 }
 
-//The following is to test if my previous derivative function is correct. 
+//The following is to test if my previous derivative function is correct.
 
 // [[Rcpp::export]]
 
 double test1(arma::vec beta) {
   double temp1=3*beta(0)*beta(0)+4*beta(1)*beta(1)*beta(1)+5*beta(0)*beta(0)*beta(2);
-  
+
   return (temp1);
 }
 
@@ -669,15 +669,15 @@ double test1(arma::vec beta) {
 arma::vec firdertest1(arma::vec beta) {
   arma::vec temp2(3);
   temp2.fill(0.0);
-  
+
   for (int i=0;i<3;i++) {
     arma::vec deltatemp(3);
     deltatemp.fill(0.0);
     deltatemp(i)=beta(i)*0.001;
-    
+
     temp2(i)=(test1(beta+deltatemp)-test1(beta-deltatemp))/(2*deltatemp(i));
   }
-  
+
   return (temp2);
 }
 
@@ -686,25 +686,25 @@ arma::vec firdertest1(arma::vec beta) {
 arma::mat secdertest1(arma::vec beta) {
   arma::mat temp3(3,3);
   temp3.fill(0.0);
-  
+
   for (int j=0;j<3;j++) {
     arma::vec deltatemp1(3);
     deltatemp1.fill(0.0);
     deltatemp1(j)=beta(j)*0.001;
-    
+
     arma::vec coltemp=(firdertest1(beta+deltatemp1)-firdertest1(beta-deltatemp1))/(2*deltatemp1(j));
-    
+
     temp3.submat(0,j,2,j)=coltemp;
   }
-  
+
   return (temp3);
-  
+
 }
 
 //End of test.
 
 
-//This function ,pic, is to calculate Pi_i in the derivative of log likelihood of logistic regression wrt 
+//This function ,pic, is to calculate Pi_i in the derivative of log likelihood of logistic regression wrt
 //beta_k(where k is from 0 to K, K is product of number of basis we need for X and Z, plus the number of beta
 //we want to estimate, plus 1(intecept), for example, when we have 2 beta to estimate, and number of basis for X and Z
 // is 6, K is then (6*6)*6+2+1, where (6*6) stands for combination of basis for x1 and x1, 6 is number of basis for Z,2 is
@@ -720,14 +720,14 @@ arma::mat secdertest1(arma::vec beta) {
 
 double pic(const arma::vec & xi, const arma::vec & beta) {
   double sum1=exp(accu(xi%beta));
-  
+
   double exppartofpii=sum1/(sum1+1);
-  
+
   return (exppartofpii);
 }
 
 
-//This function, esteqbetaic, is used to calculate the derivative of log likelihood of logistic regression wrt 
+//This function, esteqbetaic, is used to calculate the derivative of log likelihood of logistic regression wrt
 //beta_k(where k is from 0 to K, K is product of number of basis we need for X and Z, plus the number of beta
 //we want to estimate, plus 1(intecept), for example, when we have 2 beta to estimate, and number of basis for X and Z
 // is 6, K is then (6*6)*6+2+1, where (6*6) stands for combination of basis for x1 and x1, 6 is number of basis for Z,2 is
@@ -751,18 +751,18 @@ double esteqbetaic(const int & l, const arma::vec & y, const arma::mat & x, cons
   double sum1=0;
   arma::vec xrowi(m);
   xrowi.fill(0.0);
-  
+
   for (int i=0;i<n;i++) {
     double yi=y(i);
     double xil=xl(i);
     xrowi=trans(x.row(i));
-    
+
     double pii=pic(xrowi,beta);
-    
+
     sum1=sum1+yi*xil-pii*xil;
-    
+
   }
-  
+
   return (sum1);
 }
 //This function, esteqallbetaic,is used to calucalte all the derivative of log likelihood of logistic regression wrt.
@@ -777,13 +777,13 @@ arma::vec esteqallbetaic(const arma::vec & y, const arma::mat & x, const arma::v
   int s=beta.size();
   arma::vec allesteq(s);
   allesteq.fill(0.0);
-  
+
   for (int betasub=0;betasub<s;betasub++) {
-    
+
     allesteq(betasub)=esteqbetaic(betasub,y,x,beta);
-    
+
   }
-  
+
   return (allesteq);
 }
 
@@ -800,17 +800,17 @@ arma::vec esteqallbetaic(const arma::vec & y, const arma::mat & x, const arma::v
 
 double sinforcell(const int & k, const int & kprime, const arma::mat & x, const arma::vec & beta, const arma::vec & pimat1) {
   int n=x.n_rows;
-  int p=beta.size();
+  //int p=beta.size();
   double sum1=0;
 
   for (int i=0;i<n;i++) {
     double pii=pimat1(i);
     double xik=x(i,k);
     double xikp=x(i,kprime);
-    
+
     sum1=sum1+xik*pii*(1-pii)*xikp;
   }
-  
+
   return (sum1);
 }
 
@@ -825,19 +825,19 @@ arma::mat sfisherinforinv(const arma::mat & x, const arma::vec & beta) {
   xrowi.fill(0.0);
   arma::vec pimat(n);
   pimat.fill(0.0);
-  
+
   for (int i=0;i<n;i++) {
     arma::vec xrowi=trans(x.row(i));
     double pii=pic(xrowi,beta);
     pimat(i)=pii;
   }
-  
+
   for (int i=0;i<p;i++) {
     for (int j=0;j<p;j++) {
       fisher(i,j)=sinforcell(i,j,x,beta,pimat);
     }
   }
-  
+
   return (fisher);
 }
 
