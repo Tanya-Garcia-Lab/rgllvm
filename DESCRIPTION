@@ -10,7 +10,7 @@ Authors@R:
   person(given = "Yizheng",
            family = "Wei",
            role = c("aut", "cre"),
-           email = "yizheng@gmail.com")
+           email = "wyz.lewis@gmail.com")
 Maintainer: Tanya P. Garcia <tpgarcia16@gmail.com>
 Description: Semiparametric estimator for generalized linear
   latent variable model where the latent variable is a random intercept or random slope, and the distribution of the latent variable 
