@@ -24,7 +24,6 @@
 #' Default is "intercept".
 #' @param center.x logical indicator. If TRUE, the fixed covariates are centered at zero.
 #' @import stats
-#' @importFrom rootSolve multiroot
 #' @export
 gendata <- function(beta0=c(0.5,0,-0.5),
                     n=300,
