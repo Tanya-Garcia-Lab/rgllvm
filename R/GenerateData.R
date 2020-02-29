@@ -9,9 +9,24 @@
 ## fr : density f_R(r)
 ## fzr : density f_{Z|R}(Z|r)
 
+#' Generate repeated measures data
+#'
+#' @param beta0 true fixed effects parameter.
+#' @param n scalar denoting the number of sujects in the study.
+#' @param m n-dimensional vector containing the number of repeated measures per subject.
+#' @param fr.form character indicating the distribution of the latent variable. Options are "normal", "gamma", "uniform",
+#' "t", "mixture.normal" and "mixture.norm.gamma" for a mixture of normal and gamma random variables.
+#' @param fxr.form character indicating the distribution of the fixed covariates. Options are "uniform",
+#' "uniform-plus-R2" where the covariate is uniformly distributed centered at the square of the latent variable r,
+#' "normal","normal-mean-R" where the covariate has a normal distribution with the mean being the latent variable r,
+#' "normal-sd-R" where the covariate has a normal distribution with the standard deviation being |r|.
+#' @param latent.variable.type character indicating the type of latent variable generated. Options are "intercept" and "slope".
+#' Default is "intercept".
+#' @param center.x logical indicator. If TRUE, the fixed covariates are centered at zero.
 #' @import stats
 #' @importFrom rootSolve multiroot
-gendata <- function(beta=c(0.5,0,-0.5),
+#' @export
+gendata <- function(beta0=c(0.5,0,-0.5),
                     n=300,
                     m=rep(3,n),
                     fr.form = c("normal","gamma","uniform","t",
@@ -20,7 +35,7 @@ gendata <- function(beta=c(0.5,0,-0.5),
                                  "normal","normal-mean-R","normal-sd-R")[3],
                     latent.variable.type=c("intercept","slope")[1],
                     center.x=FALSE){
-  p=length(beta)
+  p=length(beta0)
 
   r <- rep(0,n)
   x <- array(NA,dim=c(n,max(m),p),
@@ -173,7 +188,7 @@ gendata <- function(beta=c(0.5,0,-0.5),
 
   for(i in 1:n){
     for(j in 1:m[i]){
-      w[i,j] <- x[i,j,]  %*% beta + r[i]
+      w[i,j] <- x[i,j,]  %*% beta0 + z[i,j]* r[i]
       prob   <- 1 / ( 1 + exp(-w[i,j]) )
       if(stats::runif(1) < prob){
         y[i,j] <-1
