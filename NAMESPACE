@@ -2,9 +2,8 @@
 
 export(gendata)
 export(rgllvm)
-import(MASS)
-import(lme4)
 import(stats)
-importFrom(lme4,fixef)
+importFrom(Rcpp,sourceCpp)
 importFrom(lqmm,gauss.quad)
 importFrom(nleqslv,nleqslv)
+useDynLib(rgllvm, .registration = TRUE)

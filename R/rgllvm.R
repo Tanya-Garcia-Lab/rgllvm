@@ -13,6 +13,8 @@
 #' logistic model with distribution-free random intercept.
 #' Scandinavian Journal of Statistics, 43, 156-171.
 #'
+#' @useDynLib rgllvm, .registration = TRUE
+#' @importFrom Rcpp sourceCpp
 #' @docType package
 #' @name rgllvm
 NULL

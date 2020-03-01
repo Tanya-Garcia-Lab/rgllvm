@@ -117,7 +117,7 @@ rgllvm <- function(y.data,x.data,z.data,
     w1 <- GLrule[[2]]
 
     esteqf2 <- function(beta) {
-      esteqf11=esteqfc(y,x1,z,u1,mu,sigma,t1,w1,beta)
+      esteqf11=.Call(`_rgllvm_esteqfc`,y,x1,z,u1,mu,sigma,t1,w1,beta)
 
       return (esteqf11/c1)
     }
@@ -137,7 +137,7 @@ rgllvm <- function(y.data,x.data,z.data,
 
     mu <- 0; sigma <- 1 # used for MLE estimates, but not needed for our purposes.
 
-    temp1=esteqc(y,x1,z,u1,mu,sigma,t1,w1,simu2)
+    temp1=.Call(`_rgllvm_esteqfc`,y,x1,z,u1,mu,sigma,t1,w1,simu2)
     temp2=rep(0,p)
     temp3=matrix(0,p,p)
     temp4=matrix(0,p,p)
@@ -162,8 +162,8 @@ rgllvm <- function(y.data,x.data,z.data,
         for (tt in 1:p) {
           betal[tt]=simu2[tt]-delta[tt]
           betar[tt]=simu2[tt]+delta[tt]
-          yout1=efficientscorefc(y[s,],x1[[s]],z[s,],u1[[s]],mu,sigma,t1,w1,betal)
-          yout2=efficientscorefc(y[s,],x1[[s]],z[s,],u1[[s]],mu,sigma,t1,w1,betar)
+          yout1=.Call('_rgllvm_efficientscorefc',y[s,],x1[[s]],z[s,],u1[[s]],mu,sigma,t1,w1,betal)
+          yout2=.Call('_rgllvm_efficientscorefc',y[s,],x1[[s]],z[s,],u1[[s]],mu,sigma,t1,w1,betar)
           A[,tt]=(yout2-yout1)/(2*delta[tt])
           betal=simu2
           betar=simu2
@@ -388,7 +388,7 @@ select.vv.random.slope <- function(y,z){
   for (i in 1:n) {
     tmp[i]=sum(vv.combinations[i,]*z[2:m])
   }
-  wi=getwic(y,z)
+  wi=.Call('_rgllvm_getwic',y,z)
   ##  index <- which(tmp<wi & tmp>=(wi-z[1]))
   index <- which(tmp==(wi-y[1]*z[1]))
   uall=vv.combinations[index,]
