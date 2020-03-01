@@ -111,7 +111,6 @@ gendata <- function(beta0=c(0.5,0,-0.5),
     }
   }
 
-  #' @import stats
   make.mixture.normals <- function(mean1=0,sd1=1,mean2=1,sd2=2,mix=0.5){
     function(nr){
       if(runif(1) < mix){
@@ -130,6 +129,12 @@ gendata <- function(beta0=c(0.5,0,-0.5),
         stats::rgamma(nr,shape=shape,scale=scale)
       }
     }
+  }
+
+  geomz <- function(n,p) {
+    temp1=rgeom(n,p)
+
+    return(temp1+1)
   }
 
   if(fr.form=="normal"){
@@ -176,7 +181,10 @@ gendata <- function(beta0=c(0.5,0,-0.5),
 
       if(latent.variable.type=="intercept"){
         z[i,j] <- 1
+      } else if(latent.variable.type=="slope"){
+        z[i,j] <- geomz(1,0.7)
       }
+
     }
   }
 

@@ -103,10 +103,6 @@ rgllvm <- function(y.data,x.data,z.data,
     ## latent variable is a random slope ##
     #######################################
 
-    ## set up where to store results
-    simu1=rep(0,p)
-    simu2=rep(0,p)
-
     ## set up variables for the analysis
     x1 <- create.list.form(x.data,n,m)
     c1 <- n
@@ -116,9 +112,11 @@ rgllvm <- function(y.data,x.data,z.data,
     t1 <- GLrule[[1]]
     w1 <- GLrule[[2]]
 
-    esteqf2 <- function(beta) {
-      esteqf11=.Call(`_rgllvm_esteqfc`,y,x1,z,u1,mu,sigma,t1,w1,beta)
+    mu <- 0; sigma <- 1 # used for MLE estimates, but not needed for our purposes.
 
+    esteqf2 <- function(beta) {
+      esteqf11=.Call('_rgllvm_esteqc', PACKAGE = 'rgllvm',y,x1,z,u1,mu,sigma,t1,w1,beta)
+      esteqf11=Reduce(`+`, esteqf11)
       return (esteqf11/c1)
     }
 
@@ -127,17 +125,14 @@ rgllvm <- function(y.data,x.data,z.data,
 
     ebeta <- nleqslv::nleqslv(beta0+0.1,esteqf2)
 
-    for (j in 1:p) {
-      simu1[j]=ebeta[[1]][j]
-      simu2[j]=simu1[j]
-    }
+    simu1 <- ebeta[[1]]
+    simu2 <- simu1
 
     ##To calculate the sandwich matrix of estiamted beta.
     ##sandmid is the middle part for calculating the sandwich matrix.
 
-    mu <- 0; sigma <- 1 # used for MLE estimates, but not needed for our purposes.
 
-    temp1=.Call(`_rgllvm_esteqfc`,y,x1,z,u1,mu,sigma,t1,w1,simu2)
+    temp1=.Call('_rgllvm_esteqc', PACKAGE = 'rgllvm',y,x1,z,u1,mu,sigma,t1,w1,simu2)
     temp2=rep(0,p)
     temp3=matrix(0,p,p)
     temp4=matrix(0,p,p)
@@ -162,8 +157,8 @@ rgllvm <- function(y.data,x.data,z.data,
         for (tt in 1:p) {
           betal[tt]=simu2[tt]-delta[tt]
           betar[tt]=simu2[tt]+delta[tt]
-          yout1=.Call('_rgllvm_efficientscorefc',y[s,],x1[[s]],z[s,],u1[[s]],mu,sigma,t1,w1,betal)
-          yout2=.Call('_rgllvm_efficientscorefc',y[s,],x1[[s]],z[s,],u1[[s]],mu,sigma,t1,w1,betar)
+          yout1=.Call('_rgllvm_efficientscorefc', PACKAGE = 'rgllvm',y[s,],x1[[s]],z[s,],u1[[s]],mu,sigma,t1,w1,betal)
+          yout2=.Call('_rgllvm_efficientscorefc', PACKAGE = 'rgllvm',y[s,],x1[[s]],z[s,],u1[[s]],mu,sigma,t1,w1,betar)
           A[,tt]=(yout2-yout1)/(2*delta[tt])
           betal=simu2
           betar=simu2
@@ -176,7 +171,7 @@ rgllvm <- function(y.data,x.data,z.data,
     betaestvari=solve(temp5)%*%temp4%*%t(solve(temp5))
 
     ## for the output
-    beta.est <- ebeta
+    beta.est <- ebeta[[1]]
     beta.var <- betaestvari
 
 
@@ -186,23 +181,24 @@ rgllvm <- function(y.data,x.data,z.data,
   #####################################################################
   ## concatenate long-form data sets for estimation with MLE and PQL ##
   #####################################################################
-  data.set <- make.data.set(n,m,p,y.data,x.data,z.data)
+#  data.set <- make.data.set(n,m,p,y.data,x.data,z.data)
 
-  ## get mle estimate
-  mle.out <- get.mle(data.set,p,z.data,nAGQ=20)
-  beta.mle <- mle.out$betas
-  beta.mle.var <- as.matrix(mle.out$betas.var)
+#  ## get mle estimate
+#  mle.out <- get.mle(data.set,p,z.data,nAGQ=20)
+#  beta.mle <- mle.out$betas
+#  beta.mle.var <- as.matrix(mle.out$betas.var)
 
-  ## get glmmPQL estimate
-  pql.out <- get.pql(data.set,p,z.data)
-  beta.pql <- pql.out$betas
-  beta.pql.var <- as.matrix(pql.out$betas.var)
+#  ## get glmmPQL estimate
+#  pql.out <- get.pql(data.set,p,z.data)
+#  beta.pql <- pql.out$betas
+#  beta.pql.var <- as.matrix(pql.out$betas.var)
 
 
 
-  return(list(beta.est=beta.est,beta.var=beta.var,
-       beta.mle=beta.mle,beta.mle.var=beta.mle.var,
-       beta.pql=beta.pql,beta.pql.var=beta.pql.var))
+  return(list(beta.est=beta.est,beta.var=beta.var#,
+      # beta.mle=beta.mle,beta.mle.var=beta.mle.var,
+      # beta.pql=beta.pql,beta.pql.var=beta.pql.var
+      ))
 }
 
 ################################################
@@ -279,82 +275,6 @@ make.data.set <- function(n,m,p,y.data,x.data,z.data){
 }
 
 
-######################################
-## Function to get normal-based MLE ##
-######################################
-
-#' @import lme4
-#' @import stats
-get.mle <- function(data.set,p,z.data,nAGQ=20){
-
-  xnam <- paste0("X",1:p)
-
-  if(is.null(z.data)){
-    ## random intercept only
-    xnam <- c(xnam,"(1|family)")
-  } else {
-    # random slope
-    xnam <- c(xnam,"(0+Z|family)")
-  }
-
-  fmla <- stats::as.formula(paste("Y~-1 +",paste(xnam,collapse="+")))
-
-  fm <- lme4::glmer(fmla,data=data.set,family=binomial,nAGQ=nAGQ,
-     	control=lme4::glmerControl(optimizer="bobyqa"))
-
-
-  ## Extract needed information for fixed effects
-  Vcov <- stats::vcov(fm, useScale = FALSE)
-  v.delta <- Vcov
-  betas <- lme4::fixef(fm)
-  se <- sqrt(diag(Vcov))
-  zval <- betas / se
-  pval <- 2 * stats::pnorm(abs(zval), lower.tail = FALSE)
-
-  return(list(betas=betas,
-       betas.var=v.delta,
-       se=se,
-       zval=zval,
-       pval=pval))
-}
-
-
-
-##########################
-## Function for glmmPQL ##
-##########################
-
-#' @import stats
-#' @import MASS
-#' @importFrom lme4 fixef
-get.pql <- function(data.set,p,z.data){
-
-
-  xnam <- paste("X",1:p,sep="")
-  fmla <- stats::as.formula(paste("Y~-1 +",paste(xnam,collapse="+")))
-
-  if(is.null(z.data)){
-    ## random intercept only
-    fm <- MASS::glmmPQL(fixed=fmla,random=~1|family,
-                        data=data.set,family=binomial,niter=100,verbose=FALSE)
-  } else {
-    ## random slope only
-    fm <- MASS::glmmPQL(fixed=fmla,random=~Z|family,
-                        data=data.set,family=binomial,niter=100,verbose=FALSE)
-
-  }
-
-  ## Extract needed information for fixed effects
-  Vcov <- stats::vcov(fm, useScale = FALSE)
-  v.delta <- Vcov
-  betas <- lme4::fixef(fm)
-  se <- sqrt(diag(Vcov))
-
-  return(list(betas=betas,betas.var=v.delta,se=se))
-}
-
-
-
 
 
 
@@ -388,7 +308,7 @@ select.vv.random.slope <- function(y,z){
   for (i in 1:n) {
     tmp[i]=sum(vv.combinations[i,]*z[2:m])
   }
-  wi=.Call('_rgllvm_getwic',y,z)
+  wi=.Call('_rgllvm_getwic',PACKAGE = 'rgllvm',y,z)
   ##  index <- which(tmp<wi & tmp>=(wi-z[1]))
   index <- which(tmp==(wi-y[1]*z[1]))
   uall=vv.combinations[index,]

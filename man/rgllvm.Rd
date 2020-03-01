@@ -36,10 +36,6 @@ for the logistic model.}
   that does not make any distributional assumptions on the latent variable.}
   \item{beta.var:}{estimated variances of the fixed effects from the  semiparametric
   estimator that does not make any distributional assumptions on the latent variable}
-  \item{beta.mle:}{fixed effect estimates from the maximum likelihood estimator.}
-  \item{beta.mle.var:}{estimated variances of the fixed effect estimates from the maximum likelihood estimator.}
-  \item{beta.pql:}{fixed effect estimates from the penalized quasi-likelihood estimator.}
-  \item{beta.pql.var:}{estimated variances of the fixed effects from the penalized quasi-likelihood estimator.}
 }
 }
 \description{
@@ -53,24 +49,56 @@ where the latent variable is a random slope.
 }
 \section{Details}{
 
-This function reports three ways to estimate parameters for repeated measures data using a generalized linear latent variable model.
-The first is a semiparametric approach where the distribution of the latent variable is left unspecified. The second is the maximum likelihood
-estimator which assumes the latent variable is normally distributed with mean zero.
-The third is the penalized quasi-likihood estimator which does not assume the
-latent variable is normally distributed, only that it has zero mean and finite variance.
+This function uses a semiparametric approach to estimate parameters for repeated measures data with a
+generalized linear latent variable model where the distribution of the latent variable is left unspecified.
 }
 
+\examples{
+## Random Intercept Example
+set.seed(1)
+n = 500
+m = rep(3,n)
+beta0 = c(0.5,0,-0.5)
+p = length(beta0)
+fr.form = "normal"
+fxr.form = "uniform"
+
+## produce long form of the repeated measures data
+data.set.out <- gendata(beta0=beta0,n,m=rep(3,n),fr.form,fxr.form,
+                       latent.variable.type = "intercept",
+                                             center.x=FALSE)
+
+y.data <- data.set.out[,c("family","Y")]
+x.data <- data.set.out[,c("family",paste0("X",1:p))]
+z.data <- data.set.out[,c("family","Z")]
+output <- rgllvm(y.data,x.data,z.data,n,m,p,
+beta0=rep(0,p), family="binomial")
+
+
+
+## Random Slope Example
+set.seed(1)
+n = 500
+m = rep(3,n)
+beta0 = c(0.5,0,-0.5)
+p = length(beta0)
+fr.form = "normal"
+fxr.form = "uniform"
+
+## produce long form of the repeated measures data
+data.set.out <- gendata(beta0=beta0,n,m=rep(3,n),fr.form,fxr.form,
+                       latent.variable.type = "slope",
+                                             center.x=FALSE)
+
+y.data <- data.set.out[,c("family","Y")]
+x.data <- data.set.out[,c("family",paste0("X",1:p))]
+z.data <- data.set.out[,c("family","Z")]
+output <- rgllvm(y.data,x.data,z.data,n,m,p,
+beta0=rep(0,p), family="binomial")
+
+
+}
 \references{
-Wei, Y., Ma, Y., Garcia, T.P. and Sinha, S. (2019). Consistent estimator
-for logistic mixed effect models. The Canadian Journal of Statistics, 47, 140-156. doi:10.1002/cjs.11482.
-
-Garcia, T.P. and Ma, Y. (2015). Optimal estimator for
-logistic model with distribution-free random intercept.
-Scandinavian Journal of Statistics, 43, 156-171.
-
-Breslow, N. E. & Clayton, D. G. (1993). Approximate inference in generalized linear mixed models.
-Journal of the American Statistical Association 88, 9-25.
-
 Garcia, T.P. and Ma, Y. (2015). Optimal estimator for
 logistic model with distribution-free random intercept.
 Scandinavian Journal of Statistics, 43, 156-171.
@@ -78,7 +106,15 @@ Scandinavian Journal of Statistics, 43, 156-171.
 Ma, Y. & Genton, M. G. (2010). Explicit estimating equations for semiparametric generalized
 linear latent variable models. Journal of the Royal Statistical Society, Series B 72, 475-495.
 
-Schall, R. (1991) Estimation in generalized linear models with random effects. Biometrika 78, 719-727.
+Wei, Y., Ma, Y., Garcia, T.P. and Sinha, S. (2019). Consistent estimator
+for logistic mixed effect models. The Canadian Journal of Statistics, 47, 140-156. doi:10.1002/cjs.11482.
+
+Garcia, T.P. and Ma, Y. (2015). Optimal estimator for
+logistic model with distribution-free random intercept.
+Scandinavian Journal of Statistics, 43, 156-171.
+
+Ma, Y. & Genton, M. G. (2010). Explicit estimating equations for semiparametric generalized
+linear latent variable models. Journal of the Royal Statistical Society, Series B 72, 475-495.
 
 Wei, Y., Ma, Y., Garcia, T.P. and Sinha, S. (2019). Consistent estimator
 for logistic mixed effect models. The Canadian Journal of Statistics, 47, 140-156. doi:10.1002/cjs.11482.
