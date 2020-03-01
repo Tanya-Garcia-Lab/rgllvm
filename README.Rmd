@@ -18,9 +18,7 @@ knitr::opts_chunk$set(
 <!-- badges: end -->
 
 
-This R package implements three ways to estimate parameters for repeated measures data using a generalized linear latent variable model
-where the latent variable is a random intercept. The first is a semiparametric approach where the distribution of the latent variable is left unspecified. The second is the maximum likelihood estimator which assumes the latent variable is normally distributed with mean zero.
-The third is the penalized quasi-likihood estimator which does not assume the latent variable is normally distributed, only that it has zero mean and finite variance. The corresponding references are:
+This R package implements a semiparametric approach to estimate parameters for repeated measures data using a generalized linear latent variable model where the latent variable is a random intercept or random slope and the distribution of the latent variable is left unspecified. The corresponding references are:
 
 Garcia, T.P. and Ma, Y. (2015). Optimal estimator for
 logistic model with distribution-free random intercept.
@@ -44,7 +42,7 @@ devtools::install_github("tpgarcia/rgllvm", force=TRUE)
 ```
 ## Example
 
-Here are examples of the estimators when the random intercept is independent of the covariate x, and dependent  on the covariate x. 
+Here are examples of the approach when the latent variable is a random intercept and random slope. 
 
 ```{r example, results="hide", message=FALSE}
 library(rgllvm)
